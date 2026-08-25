@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0A0D0B">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>SDR → MONSTR</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap');
+  :root{
+    --bg:#0A0D0B; --surface:#111815; --surface2:#161F1A; --line:#233028;
+    --green:#7CFF3D; --green-dim:#4A9E2A; --amber:#FFB100;
+    --text:#EFF5EE; --muted:#6C7A70;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;min-height:100vh;display:flex;justify-content:center;padding:20px 14px 60px;padding-top:calc(20px + env(safe-area-inset-top));}
+  .app{width:100%;max-width:430px;}
+  header{text-align:center;margin-bottom:6px;}
+  .brand{font-family:'IBM Plex Mono',monospace;font-weight:700;font-size:22px;letter-spacing:2px;color:var(--green);text-shadow:0 0 18px rgba(124,255,61,0.35);}
+  .brand span{color:var(--amber);text-shadow:0 0 18px rgba(255,177,0,0.35);}
+  .sub{font-size:11px;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;margin-top:4px;}
+  .week{font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:var(--muted);text-align:center;margin-top:10px;}
+  .can-wrap{display:flex;justify-content:center;margin:18px 0 16px;}
+  .can{position:relative;width:88px;height:150px;border-radius:10px 10px 16px 16px;background:var(--surface);border:2px solid var(--line);overflow:hidden;}
+  .can-tab{width:34px;height:8px;background:var(--line);border-radius:4px 4px 0 0;margin:0 auto;}
+  .can-fill{position:absolute;bottom:0;left:0;right:0;background:linear-gradient(180deg, var(--green) 0%, var(--green-dim) 100%);transition:height 0.5s cubic-bezier(.4,0,.2,1);box-shadow:0 0 20px rgba(124,255,61,0.4);}
+  .total{text-align:center;margin-bottom:4px;}
+  .total .amount{font-family:'IBM Plex Mono',monospace;font-weight:700;font-size:42px;color:var(--green);text-shadow:0 0 24px rgba(124,255,61,0.3);}
+  .total .label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1.5px;}
+  .count-row{display:flex;justify-content:center;gap:18px;margin:10px 0 22px;font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--muted);}
+  .count-row b{color:var(--text);}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:14px;}
+  .card h3{margin:0 0 12px;font-size:12px;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);font-weight:600;}
+  .qty-row{display:flex;align-items:center;justify-content:center;gap:16px;margin-bottom:14px;}
+  .qty-btn{width:44px;height:44px;border-radius:10px;border:1px solid var(--line);background:var(--surface2);color:var(--green);font-size:20px;font-weight:700;display:flex;align-items:center;justify-content:center;cursor:pointer;user-select:none;}
+  .qty-btn:active{transform:scale(0.94);}
+  .qty-val{font-family:'IBM Plex Mono',monospace;font-size:26px;font-weight:700;min-width:36px;text-align:center;}
+  .source-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px;}
+  .source-btn{padding:12px 8px;border-radius:10px;border:1px solid var(--line);background:var(--surface2);color:var(--text);font-size:12.5px;font-weight:600;cursor:pointer;text-align:center;line-height:1.3;}
+  .source-btn small{display:block;color:var(--muted);font-weight:400;font-size:10.5px;margin-top:2px;}
+  .source-btn.active{border-color:var(--green);color:var(--green);box-shadow:0 0 0 1px var(--green) inset;}
+  .bro-note{font-size:11px;color:var(--amber);background:rgba(255,177,0,0.08);border:1px solid rgba(255,177,0,0.25);border-radius:8px;padding:8px 10px;margin-bottom:12px;display:none;}
+  .bro-toggle{display:flex;align-items:center;gap:8px;margin-top:6px;}
+  .bro-toggle button{flex:1;padding:8px;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--muted);font-size:11px;cursor:pointer;}
+  .bro-toggle button.active{border-color:var(--amber);color:var(--amber);}
+  .add-btn{width:100%;padding:14px;border-radius:10px;border:none;background:var(--green);color:#0A0D0B;font-weight:700;font-size:14px;letter-spacing:0.5px;cursor:pointer;}
+  .add-btn:disabled{opacity:0.5;}
+  .invest-btn{width:100%;padding:14px;border-radius:10px;border:1px solid var(--amber);background:transparent;color:var(--amber);font-weight:700;font-size:13px;letter-spacing:0.5px;cursor:pointer;margin-top:6px;}
+  .invest-btn:disabled{opacity:0.3;border-color:var(--line);color:var(--muted);cursor:not-allowed;}
+  .receipt{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px 14px 10px;}
+  .receipt h3{margin:0 0 10px;font-size:12px;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);font-weight:600;}
+  .entry{display:flex;justify-content:space-between;align-items:baseline;font-family:'IBM Plex Mono',monospace;font-size:12px;padding:7px 0;border-bottom:1px dashed var(--line);color:var(--text);}
+  .entry:last-child{border-bottom:none;}
+  .entry .meta{color:var(--muted);font-size:10.5px;}
+  .entry .val{color:var(--green);font-weight:600;}
+  .entry.invest .val{color:var(--amber);}
+  .empty{text-align:center;color:var(--muted);font-size:12px;padding:14px 0;}
+  .status{text-align:center;font-size:11px;color:var(--muted);margin-top:14px;font-family:'IBM Plex Mono',monospace;}
+  .status.err{color:#FF5C5C;}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="brand">SDR → <span>MONSTR</span></div>
+    <div class="sub">tracker de depósito de garrafas</div>
+    <div class="week" id="weekRange"></div>
+  </header>
+
+  <div class="can-wrap">
+    <div>
+      <div class="can-tab"></div>
+      <div class="can"><div class="can-fill" id="canFill" style="height:0%"></div></div>
+    </div>
+  </div>
+
+  <div class="total">
+    <div class="amount" id="totalAmount">0,00€</div>
+    <div class="label">por investir</div>
+  </div>
+  <div class="count-row">
+    <span><b id="totalBottles">0</b> garrafas</span>
+    <span><b id="investedTotal">0,00€</b> já investido</span>
+  </div>
+
+  <div class="card">
+    <h3>Registar garrafas</h3>
+    <div class="qty-row">
+      <div class="qty-btn" id="qtyMinus">−</div>
+      <div class="qty-val" id="qtyVal">1</div>
+      <div class="qty-btn" id="qtyPlus">+</div>
+    </div>
+    <div class="source-grid">
+      <div class="source-btn active" data-source="encontrada">Encontrada<small>lixo/rua — 100% teu</small></div>
+      <div class="source-btn" data-source="dada">Oferecida<small>alguém deu — 100% teu</small></div>
+      <div class="source-btn" data-source="paga">Depósito próprio<small>pagaste tu — a reaver</small></div>
+      <div class="source-btn" data-source="irmao">Do irmão<small>ver nota abaixo</small></div>
+    </div>
+    <div class="bro-note" id="broNote">
+      Este dinheiro é do teu irmão. Escolhe se ficas com uma parte ou se não conta:
+      <div class="bro-toggle">
+        <button id="broNone" class="active">Não conta (0%)</button>
+        <button id="broFull">Fico com tudo (100%)</button>
+      </div>
+    </div>
+    <button class="add-btn" id="addBtn">Adicionar</button>
+  </div>
+
+  <button class="invest-btn" id="investBtn" disabled>Marcar como investido (ação Monster)</button>
+
+  <div class="receipt" style="margin-top:14px;">
+    <h3>Registo</h3>
+    <div id="log"><div class="empty">a carregar…</div></div>
+  </div>
+
+  <div class="status" id="statusLine"></div>
+</div>
+
+<script type="module">
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
+const SUPABASE_URL = 'https://yvsjchzvoikqlpbqsphs.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_KyVdGk01DDLgQ9aGsBhHdQ_UdKEn8Wh';
+const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+const RATE = 0.10;
+const CAP = 30;
+let qty = 1;
+let source = 'encontrada';
+let broShare = 0;
+
+const qtyVal = document.getElementById('qtyVal');
+const canFill = document.getElementById('canFill');
+const totalAmount = document.getElementById('totalAmount');
+const totalBottles = document.getElementById('totalBottles');
+const investedTotal = document.getElementById('investedTotal');
+const logEl = document.getElementById('log');
+const broNote = document.getElementById('broNote');
+const investBtn = document.getElementById('investBtn');
+const addBtn = document.getElementById('addBtn');
+const statusLine = document.getElementById('statusLine');
+const weekRange = document.getElementById('weekRange');
+
+function fmt(n){ return n.toFixed(2).replace('.', ',') + '€'; }
+function setStatus(msg, isErr){ statusLine.textContent = msg; statusLine.className = 'status' + (isErr ? ' err' : ''); }
+
+function currentWeekRange(){
+  const now = new Date();
+  const day = (now.getDay() + 6) % 7; // Monday = 0
+  const mon = new Date(now); mon.setDate(now.getDate() - day);
+  const sun = new Date(mon); sun.setDate(mon.getDate() + 6);
+  const f = d => d.toLocaleDateString('pt-PT', {day:'2-digit', month:'2-digit'});
+  weekRange.textContent = `semana ${f(mon)} – ${f(sun)}`;
+}
+currentWeekRange();
+
+document.getElementById('qtyMinus').onclick = () => { qty = Math.max(1, qty-1); qtyVal.textContent = qty; };
+document.getElementById('qtyPlus').onclick = () => { qty = Math.min(50, qty+1); qtyVal.textContent = qty; };
+
+document.querySelectorAll('.source-btn').forEach(btn => {
+  btn.onclick = () => {
+    document.querySelectorAll('.source-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    source = btn.dataset.source;
+    broNote.style.display = source === 'irmao' ? 'block' : 'none';
+  };
+});
+document.getElementById('broNone').onclick = () => { broShare = 0; document.getElementById('broNone').classList.add('active'); document.getElementById('broFull').classList.remove('active'); };
+document.getElementById('broFull').onclick = () => { broShare = 1; document.getElementById('broFull').classList.add('active'); document.getElementById('broNone').classList.remove('active'); };
+
+async function loadAndRender(){
+  setStatus('a sincronizar…');
+  const { data: pending, error: e1 } = await supabase.from('bottle_log').select('*').is('invested_at', null).order('logged_date', {ascending:false});
+  const { data: investedRows, error: e2 } = await supabase.from('bottle_log').select('value, invested_at').not('invested_at', 'is', null);
+
+  if(e1 || e2){ setStatus('erro de ligação — a tentar novamente', true); return; }
+
+  const total = (pending || []).reduce((s,e) => s + Number(e.value), 0);
+  const bottles = (pending || []).reduce((s,e) => s + e.qty, 0);
+  const investedSum = (investedRows || []).reduce((s,e) => s + Number(e.value), 0);
+
+  totalAmount.textContent = fmt(total);
+  totalBottles.textContent = bottles;
+  investedTotal.textContent = fmt(investedSum);
+  canFill.style.height = Math.min(100, (total/CAP)*100) + '%';
+  investBtn.disabled = total <= 0;
+
+  // group invested rows by invested_at batch for the log
+  const investBatches = {};
+  (investedRows || []).forEach(r => {
+    const k = r.invested_at;
+    investBatches[k] = (investBatches[k] || 0) + Number(r.value);
+  });
+  const investEntries = Object.entries(investBatches).map(([date, value]) => ({type:'invest', date, value}));
+  const pendingEntries = (pending || []).map(e => ({type:'entry', date: e.created_at, qty: e.qty, source: e.source, value: Number(e.value), broShare: e.bro_share}));
+
+  const items = [...pendingEntries, ...investEntries].sort((a,b) => new Date(b.date) - new Date(a.date));
+
+  if(items.length === 0){
+    logEl.innerHTML = '<div class="empty">sem registos ainda</div>';
+  } else {
+    const labels = {encontrada:'encontrada', dada:'oferecida', paga:'depósito próprio', irmao_full:'irmão (ficaste c/ tudo)', irmao_none:'irmão (não conta)'};
+    logEl.innerHTML = items.slice(0,30).map(it => {
+      const d = new Date(it.date);
+      const dstr = d.toLocaleDateString('pt-PT', {day:'2-digit', month:'2-digit'});
+      if(it.type === 'invest'){
+        return `<div class="entry invest"><span>${dstr} · investido</span><span class="val">−${fmt(it.value)}</span></div>`;
+      }
+      const key = it.source === 'irmao' ? (it.broShare ? 'irmao_full' : 'irmao_none') : it.source;
+      return `<div class="entry"><span>${dstr} · ${it.qty}× <span class="meta">${labels[key]}</span></span><span class="val">+${fmt(it.value)}</span></div>`;
+    }).join('');
+  }
+  setStatus('sincronizado');
+}
+
+addBtn.onclick = async () => {
+  addBtn.disabled = true;
+  let value = qty * RATE;
+  if(source === 'irmao') value = broShare ? value : 0;
+  const row = { qty, source, value, unit_value: RATE, bro_share: source === 'irmao' ? !!broShare : null };
+  const { error } = await supabase.from('bottle_log').insert(row);
+  addBtn.disabled = false;
+  if(error){ setStatus('erro ao guardar: ' + error.message, true); return; }
+  qty = 1; qtyVal.textContent = 1;
+  await loadAndRender();
+};
+
+investBtn.onclick = async () => {
+  investBtn.disabled = true;
+  const now = new Date().toISOString();
+  const { error } = await supabase.from('bottle_log').update({ invested_at: now }).is('invested_at', null);
+  if(error){ setStatus('erro ao marcar investido: ' + error.message, true); investBtn.disabled = false; return; }
+  await loadAndRender();
+};
+
+if('serviceWorker' in navigator){
+  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+}
+
+loadAndRender();
+</script>
+</body>
+</html>
