@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<meta name="theme-color" content="#0A0D0B">
+<meta name="theme-color" content="#12171A">
 <meta name="color-scheme" content="dark">
 <link rel="manifest" href="manifest.json">
 <link rel="icon" type="image/png" sizes="32x32" href="icons/icon-32.png">
@@ -14,94 +14,118 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>SDR → MONSTR</title>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=Martian+Mono:wght@400;600&display=swap');
   :root{
     color-scheme: dark;
-    --bg:#0A0D0B; --surface:#111815; --surface2:#161F1A; --line:#233028;
-    --green:#7CFF3D; --green-dim:#4A9E2A; --amber:#FFB100;
-    --text:#EFF5EE; --muted:#6C7A70;
+    --bg:#12171A; --tape:#1A2124; --rule:#2A3438;
+    --ink:#E6E1D6; --ink-dim:#7C8A8E;
+    --cyan:#0EC3D8; --brass:#C8A44D;
+    --err:#D9736F;
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
-  body{margin:0;background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;min-height:100vh;display:flex;justify-content:center;padding:20px 14px 60px;padding-top:calc(20px + env(safe-area-inset-top));}
-  .app{width:100%;max-width:430px;}
-  header{text-align:center;margin-bottom:6px;}
-  .brand{font-family:'IBM Plex Mono',monospace;font-weight:700;font-size:22px;letter-spacing:2px;color:var(--green);text-shadow:0 0 18px rgba(124,255,61,0.35);}
-  .brand span{color:var(--amber);text-shadow:0 0 18px rgba(255,177,0,0.35);}
-  .sub{font-size:11px;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;margin-top:4px;}
-  .week{font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:var(--muted);text-align:center;margin-top:10px;}
-  .can-wrap{display:flex;justify-content:center;align-items:center;margin:18px 0 16px;}
-  .can{position:relative;width:88px;height:150px;min-height:150px;max-height:150px;flex-shrink:0;border-radius:10px 10px 16px 16px;background:var(--surface);border:2px solid var(--line);overflow:hidden;contain:layout paint;}
-  .can-tab{width:34px;height:8px;background:var(--line);border-radius:4px 4px 0 0;margin:0 auto;}
-  .can-fill{position:absolute;bottom:0;left:0;right:0;background:linear-gradient(180deg, var(--green) 0%, var(--green-dim) 100%);transition:height 0.5s cubic-bezier(.4,0,.2,1);box-shadow:0 0 20px rgba(124,255,61,0.4);}
-  .can-fill.over{background:linear-gradient(180deg, var(--amber) 0%, #C97F00 100%);box-shadow:0 0 20px rgba(255,177,0,0.4);}
-  .total{text-align:center;margin-bottom:4px;}
-  .total .amount{font-family:'IBM Plex Mono',monospace;font-weight:700;font-size:42px;color:var(--green);text-shadow:0 0 24px rgba(124,255,61,0.3);}
-  .total .label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1.5px;}
-  .split-row{display:grid;grid-template-columns:1fr 1fr;gap:3px 12px;font-size:10px;color:var(--muted);font-family:'IBM Plex Mono',monospace;margin-top:8px;}
+  button,input{font:inherit;color:inherit;}
+  :focus-visible{outline:2px solid var(--cyan);outline-offset:2px;border-radius:4px;}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:'Archivo',sans-serif;min-height:100vh;display:flex;justify-content:center;padding:24px 16px 48px;padding-top:calc(24px + env(safe-area-inset-top));}
+  .app{width:100%;max-width:420px;}
+
+  header{display:flex;align-items:baseline;justify-content:space-between;padding-bottom:12px;border-bottom:1px solid var(--rule);margin-bottom:24px;}
+  .brand{font-weight:700;font-size:15px;letter-spacing:0.3px;color:var(--ink);}
+  .brand .arrow{color:var(--cyan);}
+  .week{font-family:'Martian Mono',monospace;font-size:11px;color:var(--ink-dim);font-variant-numeric:tabular-nums;}
+
+  .total{text-align:center;}
+  .total .amount{font-family:'Martian Mono',monospace;font-weight:600;font-size:44px;color:var(--ink);font-variant-numeric:tabular-nums;letter-spacing:-0.5px;}
+  .total .label{font-size:12px;color:var(--ink-dim);margin-top:2px;}
+
+  .ruler-wrap{position:relative;height:28px;margin:20px 0 4px;}
+  .ruler-wrap::before{content:'';position:absolute;left:0;right:0;bottom:6px;height:1px;background:var(--rule);}
+  .rtick{position:absolute;bottom:6px;width:1px;height:5px;background:var(--rule);}
+  .rtick.tall{height:10px;}
+  .rtarget{position:absolute;bottom:6px;width:2px;height:15px;background:var(--ink-dim);transform:translateX(-1px);}
+  .rtarget b{position:absolute;top:-14px;left:50%;transform:translateX(-50%);font-family:'Martian Mono',monospace;font-weight:600;font-size:9.5px;color:var(--ink-dim);white-space:nowrap;}
+  .rind{position:absolute;bottom:4px;width:3px;height:19px;border-radius:2px;background:var(--cyan);transform:translateX(-1.5px);transition:left .4s ease, background .3s ease;}
+  .rind.over{background:var(--brass);}
+  .rind::after{content:'';position:absolute;top:-5px;left:50%;transform:translateX(-50%);width:6px;height:6px;border-radius:50%;background:inherit;}
+
+  .split-row{display:grid;grid-template-columns:1fr 1fr;gap:4px 16px;font-size:11px;color:var(--ink-dim);font-family:'Martian Mono',monospace;margin:16px 0 4px;font-variant-numeric:tabular-nums;}
   .split-row span{text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-  .count-row{display:flex;justify-content:center;gap:18px;margin:10px 0 22px;font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--muted);}
-  .count-row b{color:var(--text);}
-  .card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:14px;}
-  .card h3{margin:0 0 12px;font-size:12px;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);font-weight:600;}
-  .qty-row{display:flex;align-items:center;justify-content:center;gap:16px;margin-bottom:14px;}
-  .qty-btn{width:44px;height:44px;border-radius:10px;border:1px solid var(--line);background:var(--surface2);color:var(--green);font-size:20px;font-weight:700;display:flex;align-items:center;justify-content:center;cursor:pointer;user-select:none;}
-  .qty-btn:active{transform:scale(0.94);}
-  .qty-val{font-family:'IBM Plex Mono',monospace;font-size:26px;font-weight:700;min-width:36px;text-align:center;}
-  .source-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px;}
-  .source-btn{padding:12px 8px;border-radius:10px;border:1px solid var(--line);background:var(--surface2);color:var(--text);font-size:12.5px;font-weight:600;cursor:pointer;text-align:center;line-height:1.3;}
-  .source-btn small{display:block;color:var(--muted);font-weight:400;font-size:10.5px;margin-top:2px;}
-  .source-btn.active{border-color:var(--green);color:var(--green);box-shadow:0 0 0 1px var(--green) inset;}
-  .add-btn{width:100%;padding:14px;border-radius:10px;border:none;background:var(--green);color:#0A0D0B;font-weight:700;font-size:14px;letter-spacing:0.5px;cursor:pointer;}
-  .add-btn:disabled{opacity:0.5;}
-  .invest-btn{width:100%;padding:14px;border-radius:10px;border:1px solid var(--amber);background:transparent;color:var(--amber);font-weight:700;font-size:13px;letter-spacing:0.5px;cursor:pointer;margin-top:6px;}
-  .invest-btn:disabled{opacity:0.3;border-color:var(--line);color:var(--muted);cursor:not-allowed;}
-  .invest-form{background:var(--surface);border:1px solid var(--amber);border-radius:10px;padding:14px;margin-top:6px;}
-  .invest-form-row{display:flex;justify-content:space-between;align-items:baseline;font-size:12px;color:var(--muted);margin-bottom:10px;}
-  .invest-form-row b{font-family:'IBM Plex Mono',monospace;font-size:16px;color:var(--amber);}
-  .invest-input{width:100%;padding:11px;border-radius:8px;border:1px solid var(--line);background:var(--surface2);color:var(--text);font-family:'IBM Plex Mono',monospace;font-size:13px;margin-bottom:8px;}
-  .invest-input::placeholder{color:var(--muted);}
+
+  .count-row{display:flex;justify-content:space-between;gap:12px;margin-top:12px;padding-top:12px;border-top:1px solid var(--rule);font-family:'Martian Mono',monospace;font-size:11.5px;color:var(--ink-dim);font-variant-numeric:tabular-nums;}
+  .count-row b{color:var(--ink);font-weight:600;}
+
+  .card{margin-top:24px;}
+  .card h3{margin:0 0 12px;font-size:12px;color:var(--ink-dim);font-weight:600;}
+
+  .source-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px;}
+  .source-btn{padding:10px 8px;border-radius:8px;border:1px solid var(--rule);background:var(--tape);color:var(--ink);font-size:12.5px;font-weight:500;cursor:pointer;text-align:center;line-height:1.3;}
+  .source-btn small{display:block;color:var(--ink-dim);font-weight:400;font-size:10px;margin-top:2px;}
+  .source-btn.active{border-color:var(--cyan);color:var(--cyan);}
+  .source-btn.active small{color:var(--cyan);opacity:0.75;}
+
+  .add-row{display:flex;align-items:center;justify-content:space-between;gap:12px;}
+  .qty-row{display:flex;align-items:center;gap:10px;}
+  .qty-btn{width:38px;height:38px;border-radius:8px;border:1px solid var(--rule);background:var(--tape);color:var(--ink);font-size:18px;font-weight:600;display:flex;align-items:center;justify-content:center;cursor:pointer;}
+  .qty-btn:active{background:var(--rule);}
+  .qty-val{font-family:'Martian Mono',monospace;font-size:19px;font-weight:600;min-width:28px;text-align:center;font-variant-numeric:tabular-nums;}
+  .add-btn{padding:11px 22px;border-radius:8px;border:1px solid var(--cyan);background:var(--tape);color:var(--cyan);font-weight:600;font-size:13px;cursor:pointer;}
+  .add-btn:disabled{opacity:0.4;cursor:not-allowed;}
+
+  .invest-btn{width:100%;padding:12px;border-radius:8px;border:1px solid var(--rule);background:transparent;color:var(--ink-dim);font-weight:600;font-size:13px;cursor:pointer;margin-top:8px;}
+  .invest-btn:disabled{opacity:0.35;cursor:not-allowed;}
+  .invest-btn:not(:disabled):hover{border-color:var(--brass);color:var(--brass);}
+  .invest-form{background:var(--tape);border:1px solid var(--brass);border-radius:8px;padding:16px;margin-top:8px;}
+  .invest-form-row{display:flex;justify-content:space-between;align-items:baseline;font-size:12px;color:var(--ink-dim);margin-bottom:12px;}
+  .invest-form-row b{font-family:'Martian Mono',monospace;font-size:17px;color:var(--brass);font-variant-numeric:tabular-nums;}
+  .invest-input{width:100%;padding:10px;border-radius:6px;border:1px solid var(--rule);background:var(--bg);color:var(--ink);font-family:'Martian Mono',monospace;font-size:13px;margin-bottom:8px;}
+  .invest-input::placeholder{color:var(--ink-dim);}
   .invest-actions{display:flex;gap:8px;margin-top:4px;}
-  .invest-actions button{flex:1;padding:11px;border-radius:8px;font-weight:700;font-size:12.5px;cursor:pointer;}
-  .invest-cancel{border:1px solid var(--line);background:transparent;color:var(--muted);}
-  .invest-confirm{border:none;background:var(--amber);color:#0A0D0B;}
-  .entry-block{border-bottom:1px dashed var(--line);padding:7px 0;}
-  .entry-block:last-child{border-bottom:none;}
-  .entry-block .entry{border-bottom:none;padding:0;}
-  .entry-sub{font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:var(--muted);padding-top:2px;}
-  .receipt{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px 14px 10px;}
-  .receipt h3{margin:0 0 10px;font-size:12px;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);font-weight:600;}
-  .entry{display:flex;justify-content:space-between;align-items:baseline;font-family:'IBM Plex Mono',monospace;font-size:12px;padding:7px 0;border-bottom:1px dashed var(--line);color:var(--text);}
+  .invest-actions button{flex:1;padding:10px;border-radius:6px;font-weight:600;font-size:12.5px;cursor:pointer;}
+  .invest-cancel{border:1px solid var(--rule);background:transparent;color:var(--ink-dim);}
+  .invest-confirm{border:1px solid var(--brass);background:var(--brass);color:var(--bg);}
+
+  .tape{background:var(--tape);border-radius:8px 8px 0 0;padding:16px 16px 0;margin-top:24px;}
+  .tape h3{margin:0 0 12px;font-size:12px;color:var(--ink-dim);font-weight:600;}
+  .tape-tear{height:12px;margin:0 -16px;background-image:
+      linear-gradient(45deg, transparent 33.333%, var(--bg) 33.333%, var(--bg) 66.667%, transparent 66.667%),
+      linear-gradient(-45deg, transparent 33.333%, var(--bg) 33.333%, var(--bg) 66.667%, transparent 66.667%);
+    background-position:0 0;background-size:16px 24px;background-repeat:repeat-x;}
+
+  .entry{display:grid;grid-template-columns:1fr auto;align-items:baseline;gap:12px;padding:9px 0;border-bottom:1px dashed var(--rule);}
   .entry:last-child{border-bottom:none;}
-  .entry .meta{color:var(--muted);font-size:10.5px;}
-  .entry .val{color:var(--green);font-weight:600;}
-  .entry.invest .val{color:var(--amber);}
-  .entry .right{display:flex;align-items:center;gap:8px;}
-  .del-btn{background:none;border:none;color:var(--muted);font-size:14px;line-height:1;cursor:pointer;padding:2px 4px;font-family:'IBM Plex Mono',monospace;}
-  .del-btn:active{color:#FF5C5C;}
-  .empty{text-align:center;color:var(--muted);font-size:12px;padding:14px 0;}
-  .status{text-align:center;font-size:11px;color:var(--muted);margin-top:14px;font-family:'IBM Plex Mono',monospace;}
-  .status.err{color:#FF5C5C;}
+  .entry > span:first-child{color:var(--ink-dim);font-size:12.5px;}
+  .entry .meta{color:var(--ink-dim);font-size:10.5px;}
+  .entry .val{font-family:'Martian Mono',monospace;color:var(--ink);text-align:right;font-variant-numeric:tabular-nums;font-size:12.5px;}
+  .entry.invest .val{color:var(--brass);}
+  .entry .right{display:flex;align-items:center;gap:8px;justify-content:flex-end;}
+  .del-btn{background:none;border:none;color:var(--ink-dim);font-size:13px;line-height:1;cursor:pointer;padding:2px 4px;font-family:'Martian Mono',monospace;}
+  .del-btn:hover,.del-btn:focus-visible{color:var(--err);}
+  .cut{display:flex;align-items:center;gap:10px;margin:12px 0 0;color:var(--ink-dim);font-family:'Martian Mono',monospace;font-size:10px;letter-spacing:2px;}
+  .cut::before,.cut::after{content:'';flex:1;border-top:1px dashed var(--rule);}
+  .entry-sub{font-family:'Martian Mono',monospace;font-size:10px;color:var(--ink-dim);padding:0 0 9px;font-variant-numeric:tabular-nums;}
+  .empty{text-align:center;color:var(--ink-dim);font-size:12.5px;padding:20px 0;}
+
+  @keyframes tape-enter{from{opacity:0;transform:translateY(-6px);}to{opacity:1;transform:translateY(0);}}
+  .enter{animation:tape-enter 180ms ease-out;}
+  @media (prefers-reduced-motion: reduce){ .enter{animation:none;} }
+
+  .status{text-align:center;font-size:10.5px;color:var(--ink-dim);margin-top:16px;font-family:'Martian Mono',monospace;}
+  .status.err{color:var(--err);}
 </style>
 </head>
 <body>
 <div class="app">
   <header>
-    <div class="brand">SDR → <span>MONSTR</span></div>
-    <div class="sub">deposit bottle tracker</div>
+    <div class="brand">SDR <span class="arrow">→</span> MONSTR</div>
     <div class="week" id="weekRange"></div>
   </header>
-
-  <div class="can-wrap">
-    <div>
-      <div class="can-tab"></div>
-      <div class="can"><div class="can-fill" id="canFill" style="height:0%"></div></div>
-    </div>
-  </div>
 
   <div class="total">
     <div class="amount" id="totalAmount">€0.00</div>
     <div class="label">to invest</div>
   </div>
+
+  <div class="ruler-wrap" id="rulerWrap" role="img"></div>
+
   <div class="split-row" id="splitRow"></div>
   <div class="count-row">
     <span id="bottlesLine"><b id="totalBottles">0</b> bottles</span>
@@ -109,35 +133,38 @@
   </div>
 
   <div class="card">
-    <h3>Log bottles</h3>
-    <div class="qty-row">
-      <div class="qty-btn" id="qtyMinus">−</div>
-      <div class="qty-val" id="qtyVal">1</div>
-      <div class="qty-btn" id="qtyPlus">+</div>
-    </div>
+    <h3>Add bottles</h3>
     <div class="source-grid">
-      <div class="source-btn active" data-source="found">Found<small>street/bin</small></div>
-      <div class="source-btn" data-source="own_deposit">Own deposit<small>reclaiming</small></div>
-      <div class="source-btn" data-source="others">For others<small>recycled for someone else</small></div>
-      <div class="source-btn" data-source="scam">🥷 Scam<small>machine trickery</small></div>
+      <button class="source-btn active" type="button" data-source="found">Found<small>street/bin</small></button>
+      <button class="source-btn" type="button" data-source="own_deposit">Own deposit<small>reclaiming</small></button>
+      <button class="source-btn" type="button" data-source="others">For others<small>recycled for someone else</small></button>
+      <button class="source-btn" type="button" data-source="scam">🥷 Scam<small>machine trickery</small></button>
     </div>
-    <button class="add-btn" id="addBtn">Add</button>
+    <div class="add-row">
+      <div class="qty-row">
+        <button class="qty-btn" type="button" id="qtyMinus" aria-label="Decrease quantity">−</button>
+        <div class="qty-val" id="qtyVal">1</div>
+        <button class="qty-btn" type="button" id="qtyPlus" aria-label="Increase quantity">+</button>
+      </div>
+      <button class="add-btn" type="button" id="addBtn">Add</button>
+    </div>
   </div>
 
-  <button class="invest-btn" id="investBtn" disabled>Mark as invested (Monster buy)</button>
+  <button class="invest-btn" type="button" id="investBtn" disabled>Mark as invested (Monster buy)</button>
   <div class="invest-form" id="investForm" style="display:none;">
     <div class="invest-form-row"><span>Amount</span><b id="investAmount">€0.00</b></div>
     <input class="invest-input" type="number" id="sharePriceInput" placeholder="Price per share (optional)" step="0.01" min="0" inputmode="decimal">
     <input class="invest-input" type="number" id="sharesInput" placeholder="Shares bought (optional)" step="0.0001" min="0" inputmode="decimal">
     <div class="invest-actions">
-      <button class="invest-cancel" id="investCancel">Cancel</button>
-      <button class="invest-confirm" id="investConfirm">Confirm</button>
+      <button class="invest-cancel" type="button" id="investCancel">Cancel</button>
+      <button class="invest-confirm" type="button" id="investConfirm">Confirm</button>
     </div>
   </div>
 
-  <div class="receipt" style="margin-top:14px;">
-    <h3>History</h3>
+  <div class="tape">
+    <h3>the tape</h3>
     <div id="log"><div class="empty">loading…</div></div>
+    <div class="tape-tear" aria-hidden="true"></div>
   </div>
 
   <div class="status" id="statusLine"></div>
@@ -151,12 +178,13 @@ const SUPABASE_ANON_KEY = 'sb_publishable_KyVdGk01DDLgQ9aGsBhHdQ_UdKEn8Wh';
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 const RATE = 0.10;
-const CAP = 10; // weekly target shown by the can bar
+const CAP = 10; // weekly target shown by the ruler
 let qty = 1;
 let source = 'found';
+let justAdded = false;
 
 const qtyVal = document.getElementById('qtyVal');
-const canFill = document.getElementById('canFill');
+const rulerWrap = document.getElementById('rulerWrap');
 const totalAmount = document.getElementById('totalAmount');
 const splitRow = document.getElementById('splitRow');
 const bottlesLine = document.getElementById('bottlesLine');
@@ -197,6 +225,21 @@ function currentWeekRange(){
 }
 currentWeekRange();
 
+function renderRuler(weekTotal, cap){
+  const over = weekTotal > cap;
+  const scaleMax = over ? weekTotal * 1.12 : cap;
+  const maxTickValue = Math.floor(scaleMax);
+  let ticks = '';
+  for(let v = 0; v <= maxTickValue; v++){
+    const pct = (v / scaleMax) * 100;
+    ticks += `<i class="rtick${v % 2 === 0 ? ' tall' : ''}" style="left:${pct}%"></i>`;
+  }
+  const targetPct = Math.min(100, (cap / scaleMax) * 100);
+  const indPct = Math.min(100, (weekTotal / scaleMax) * 100);
+  rulerWrap.setAttribute('aria-label', `${fmt(weekTotal)} of ${fmt(cap)} this week`);
+  rulerWrap.innerHTML = `${ticks}<i class="rtarget" style="left:${targetPct}%"><b>€${cap}</b></i><i class="rind${over ? ' over' : ''}" style="left:${indPct}%"></i>`;
+}
+
 document.getElementById('qtyMinus').onclick = () => { qty = Math.max(1, qty-1); qtyVal.textContent = qty; };
 document.getElementById('qtyPlus').onclick = () => { qty = Math.min(50, qty+1); qtyVal.textContent = qty; };
 
@@ -232,9 +275,7 @@ async function loadAndRender(){
     const ld = e.logged_date;
     return (e.source !== 'seed' && ld >= monStr && ld <= sunStr) ? s + Number(e.value) : s;
   }, 0);
-  const overCap = weekTotal > CAP;
-  canFill.style.height = Math.min(100, (weekTotal / CAP) * 100) + '%';
-  canFill.classList.toggle('over', overCap);
+  renderRuler(weekTotal, CAP);
 
   const bySource = { found: 0, scam: 0, own_deposit: 0, others: 0 };
   (pending || []).forEach(e => { if(e.source in bySource) bySource[e.source] += Number(e.value); });
@@ -259,27 +300,28 @@ async function loadAndRender(){
   const items = [...pendingEntries, ...investEntries].sort((a,b) => new Date(b.date) - new Date(a.date));
 
   if(items.length === 0){
-    logEl.innerHTML = '<div class="empty">no entries yet</div>';
+    logEl.innerHTML = '<div class="empty">Nothing on the tape yet.</div>';
   } else {
     const labels = {found:'found', own_deposit:'own deposit', others:'for others', scam:'scam'};
-    logEl.innerHTML = items.slice(0,30).map(it => {
+    logEl.innerHTML = items.slice(0,30).map((it, idx) => {
+      const enterClass = (justAdded && idx === 0) ? ' enter' : '';
       const d = new Date(it.date);
       const dstr = d.toLocaleDateString('en-GB', {day:'2-digit', month:'2-digit'});
       if(it.type === 'invest'){
         const det = it.detail;
         let sub = '';
         if(det && (det.shares != null || det.share_price != null)){
-          const parts = [];
-          if(det.shares != null) parts.push(`${fmtShares(det.shares)} shares`);
-          if(det.share_price != null) parts.push(`@ ${fmt(Number(det.share_price))}`);
-          sub = `<div class="entry-sub">${parts.join(' ')}</div>`;
+          const parts2 = [];
+          if(det.shares != null) parts2.push(`${fmtShares(det.shares)} shares`);
+          if(det.share_price != null) parts2.push(`@ ${fmt(Number(det.share_price))}`);
+          sub = `<div class="entry-sub">${parts2.join(' ')}</div>`;
         }
-        return `<div class="entry-block"><div class="entry invest"><span>${dstr} · invested</span><span class="val">−${fmt(it.value)}</span></div>${sub}</div>`;
+        return `<div class="entry-block${enterClass}"><div class="cut"><span>cut</span></div><div class="entry invest"><span>${dstr} · invested</span><span class="val">−${fmt(it.value)}</span></div>${sub}</div>`;
       }
       if(it.source === 'seed'){
-        return `<div class="entry"><span>${dstr} · <span class="meta">opening balance</span></span><span class="right"><span class="val">+${fmt(it.value)}</span><button class="del-btn" data-id="${it.id}" title="delete">✕</button></span></div>`;
+        return `<div class="entry${enterClass}"><span>${dstr} · <span class="meta">opening balance</span></span><span class="right"><span class="val">+${fmt(it.value)}</span><button class="del-btn" type="button" data-id="${it.id}" title="delete">✕</button></span></div>`;
       }
-      return `<div class="entry"><span>${dstr} · ${it.qty}× <span class="meta">${labels[it.source] || it.source}</span></span><span class="right"><span class="val">+${fmt(it.value)}</span><button class="del-btn" data-id="${it.id}" title="delete">✕</button></span></div>`;
+      return `<div class="entry${enterClass}"><span>${dstr} · ${it.qty}× <span class="meta">${labels[it.source] || it.source}</span></span><span class="right"><span class="val">+${fmt(it.value)}</span><button class="del-btn" type="button" data-id="${it.id}" title="delete">✕</button></span></div>`;
     }).join('');
     logEl.querySelectorAll('.del-btn').forEach(btn => {
       btn.onclick = async () => {
@@ -291,6 +333,7 @@ async function loadAndRender(){
       };
     });
   }
+  justAdded = false;
   setStatus('synced');
 }
 
@@ -302,6 +345,7 @@ addBtn.onclick = async () => {
   addBtn.disabled = false;
   if(error){ setStatus('save failed: ' + error.message, true); return; }
   qty = 1; qtyVal.textContent = 1;
+  justAdded = true;
   await loadAndRender();
 };
 
