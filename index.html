@@ -48,6 +48,19 @@
   .add-btn:disabled{opacity:0.5;}
   .invest-btn{width:100%;padding:14px;border-radius:10px;border:1px solid var(--amber);background:transparent;color:var(--amber);font-weight:700;font-size:13px;letter-spacing:0.5px;cursor:pointer;margin-top:6px;}
   .invest-btn:disabled{opacity:0.3;border-color:var(--line);color:var(--muted);cursor:not-allowed;}
+  .invest-form{background:var(--surface);border:1px solid var(--amber);border-radius:10px;padding:14px;margin-top:6px;}
+  .invest-form-row{display:flex;justify-content:space-between;align-items:baseline;font-size:12px;color:var(--muted);margin-bottom:10px;}
+  .invest-form-row b{font-family:'IBM Plex Mono',monospace;font-size:16px;color:var(--amber);}
+  .invest-input{width:100%;padding:11px;border-radius:8px;border:1px solid var(--line);background:var(--surface2);color:var(--text);font-family:'IBM Plex Mono',monospace;font-size:13px;margin-bottom:8px;}
+  .invest-input::placeholder{color:var(--muted);}
+  .invest-actions{display:flex;gap:8px;margin-top:4px;}
+  .invest-actions button{flex:1;padding:11px;border-radius:8px;font-weight:700;font-size:12.5px;cursor:pointer;}
+  .invest-cancel{border:1px solid var(--line);background:transparent;color:var(--muted);}
+  .invest-confirm{border:none;background:var(--amber);color:#0A0D0B;}
+  .entry-block{border-bottom:1px dashed var(--line);padding:7px 0;}
+  .entry-block:last-child{border-bottom:none;}
+  .entry-block .entry{border-bottom:none;padding:0;}
+  .entry-sub{font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:var(--muted);padding-top:2px;}
   .receipt{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px 14px 10px;}
   .receipt h3{margin:0 0 10px;font-size:12px;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);font-weight:600;}
   .entry{display:flex;justify-content:space-between;align-items:baseline;font-family:'IBM Plex Mono',monospace;font-size:12px;padding:7px 0;border-bottom:1px dashed var(--line);color:var(--text);}
@@ -85,7 +98,7 @@
   <div class="split-row" id="splitRow"></div>
   <div class="count-row">
     <span><b id="totalBottles">0</b> bottles</span>
-    <span><b id="investedTotal">€0.00</b> already invested</span>
+    <span id="investedLine"><b id="investedTotal">€0.00</b> already invested</span>
   </div>
 
   <div class="card">
@@ -104,6 +117,15 @@
   </div>
 
   <button class="invest-btn" id="investBtn" disabled>Mark as invested (Monster buy)</button>
+  <div class="invest-form" id="investForm" style="display:none;">
+    <div class="invest-form-row"><span>Amount</span><b id="investAmount">€0.00</b></div>
+    <input class="invest-input" type="number" id="sharePriceInput" placeholder="Price per share (optional)" step="0.01" min="0" inputmode="decimal">
+    <input class="invest-input" type="number" id="sharesInput" placeholder="Shares bought (optional)" step="0.0001" min="0" inputmode="decimal">
+    <div class="invest-actions">
+      <button class="invest-cancel" id="investCancel">Cancel</button>
+      <button class="invest-confirm" id="investConfirm">Confirm</button>
+    </div>
+  </div>
 
   <div class="receipt" style="margin-top:14px;">
     <h3>History</h3>
@@ -130,14 +152,23 @@ const canFill = document.getElementById('canFill');
 const totalAmount = document.getElementById('totalAmount');
 const splitRow = document.getElementById('splitRow');
 const totalBottles = document.getElementById('totalBottles');
-const investedTotal = document.getElementById('investedTotal');
 const logEl = document.getElementById('log');
 const investBtn = document.getElementById('investBtn');
+const investForm = document.getElementById('investForm');
+const investAmount = document.getElementById('investAmount');
+const sharePriceInput = document.getElementById('sharePriceInput');
+const sharesInput = document.getElementById('sharesInput');
+const investCancel = document.getElementById('investCancel');
+const investConfirm = document.getElementById('investConfirm');
 const addBtn = document.getElementById('addBtn');
 const statusLine = document.getElementById('statusLine');
 const weekRange = document.getElementById('weekRange');
+const investedLine = document.getElementById('investedLine');
+
+let pendingTotal = 0;
 
 function fmt(n){ return '€' + n.toFixed(2); }
+function fmtShares(n){ return (Math.round(Number(n) * 10000) / 10000).toString(); }
 function setStatus(msg, isErr){ statusLine.textContent = msg; statusLine.className = 'status' + (isErr ? ' err' : ''); }
 
 function currentWeekRange(){
@@ -165,16 +196,19 @@ async function loadAndRender(){
   setStatus('syncing…');
   const { data: pending, error: e1 } = await supabase.from('bottle_log').select('*').is('invested_at', null).order('logged_date', {ascending:false});
   const { data: investedRows, error: e2 } = await supabase.from('bottle_log').select('value, invested_at').not('invested_at', 'is', null);
+  const { data: investmentRows, error: e3 } = await supabase.from('investments').select('invested_at, amount, share_price, shares');
 
-  if(e1 || e2){ setStatus('connection error — retrying', true); return; }
+  if(e1 || e2 || e3){ setStatus('connection error — retrying', true); return; }
 
   const total = (pending || []).reduce((s,e) => s + Number(e.value), 0);
   const bottles = (pending || []).reduce((s,e) => s + e.qty, 0);
   const investedSum = (investedRows || []).reduce((s,e) => s + Number(e.value), 0);
+  const sharesHeld = (investmentRows || []).reduce((s,r) => s + (r.shares != null ? Number(r.shares) : 0), 0);
 
+  pendingTotal = total;
   totalAmount.textContent = fmt(total);
   totalBottles.textContent = bottles;
-  investedTotal.textContent = fmt(investedSum);
+  investedLine.innerHTML = `<b>${fmt(investedSum)}</b> already invested` + (sharesHeld > 0 ? ` · ${fmtShares(sharesHeld)} shares held` : '');
   canFill.style.height = Math.min(100, (total/CAP)*100) + '%';
   investBtn.disabled = total <= 0;
 
@@ -192,7 +226,9 @@ async function loadAndRender(){
     const k = r.invested_at;
     investBatches[k] = (investBatches[k] || 0) + Number(r.value);
   });
-  const investEntries = Object.entries(investBatches).map(([date, value]) => ({type:'invest', date, value}));
+  const investDetails = {};
+  (investmentRows || []).forEach(r => { investDetails[r.invested_at] = r; });
+  const investEntries = Object.entries(investBatches).map(([date, value]) => ({type:'invest', date, value, detail: investDetails[date]}));
   const pendingEntries = (pending || []).map(e => ({type:'entry', id: e.id, date: e.created_at, qty: e.qty, source: e.source, value: Number(e.value)}));
 
   const items = [...pendingEntries, ...investEntries].sort((a,b) => new Date(b.date) - new Date(a.date));
@@ -205,7 +241,15 @@ async function loadAndRender(){
       const d = new Date(it.date);
       const dstr = d.toLocaleDateString('en-GB', {day:'2-digit', month:'2-digit'});
       if(it.type === 'invest'){
-        return `<div class="entry invest"><span>${dstr} · invested</span><span class="val">−${fmt(it.value)}</span></div>`;
+        const det = it.detail;
+        let sub = '';
+        if(det && (det.shares != null || det.share_price != null)){
+          const parts = [];
+          if(det.shares != null) parts.push(`${fmtShares(det.shares)} shares`);
+          if(det.share_price != null) parts.push(`@ ${fmt(Number(det.share_price))}`);
+          sub = `<div class="entry-sub">${parts.join(' ')}</div>`;
+        }
+        return `<div class="entry-block"><div class="entry invest"><span>${dstr} · invested</span><span class="val">−${fmt(it.value)}</span></div>${sub}</div>`;
       }
       if(it.source === 'seed'){
         return `<div class="entry"><span>${dstr} · <span class="meta">opening balance</span></span><span class="right"><span class="val">+${fmt(it.value)}</span><button class="del-btn" data-id="${it.id}" title="delete">✕</button></span></div>`;
@@ -236,12 +280,39 @@ addBtn.onclick = async () => {
   await loadAndRender();
 };
 
-investBtn.onclick = async () => {
-  investBtn.disabled = true;
+investBtn.onclick = () => {
+  investAmount.textContent = fmt(pendingTotal);
+  investForm.style.display = 'block';
+  investBtn.style.display = 'none';
+};
+
+investCancel.onclick = () => {
+  investForm.style.display = 'none';
+  investBtn.style.display = 'block';
+  sharePriceInput.value = '';
+  sharesInput.value = '';
+};
+
+investConfirm.onclick = async () => {
+  investConfirm.disabled = true;
   const now = new Date().toISOString();
-  const { error } = await supabase.from('bottle_log').update({ invested_at: now }).is('invested_at', null);
-  if(error){ setStatus('mark as invested failed: ' + error.message, true); investBtn.disabled = false; return; }
+  const amount = pendingTotal;
+  const price = sharePriceInput.value !== '' ? Number(sharePriceInput.value) : null;
+  const shares = sharesInput.value !== '' ? Number(sharesInput.value) : null;
+
+  const { error: updErr } = await supabase.from('bottle_log').update({ invested_at: now }).is('invested_at', null);
+  if(updErr){ setStatus('mark as invested failed: ' + updErr.message, true); investConfirm.disabled = false; return; }
+
+  const { error: insErr } = await supabase.from('investments').insert({ invested_at: now, amount, share_price: price, shares });
+
+  investConfirm.disabled = false;
+  sharePriceInput.value = '';
+  sharesInput.value = '';
+  investForm.style.display = 'none';
+  investBtn.style.display = 'block';
   await loadAndRender();
+
+  if(insErr){ setStatus('bottles marked as invested, but the investment record failed to save: ' + insErr.message, true); }
 };
 
 if('serviceWorker' in navigator){
