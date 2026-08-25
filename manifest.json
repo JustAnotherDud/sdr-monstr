@@ -1,6 +1,6 @@
 {
-  "name": "SDR → MONSTR",
-  "short_name": "SDR→MONSTR",
+  "name": "SDR → MNST",
+  "short_name": "SDR→MNST",
   "description": "Log deposit-return bottles and stack cash for a weekly Monster stock buy",
   "start_url": "./index.html",
   "scope": "./",
