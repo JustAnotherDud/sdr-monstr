@@ -44,7 +44,7 @@
   .qty-btn{width:44px;height:44px;border-radius:10px;border:1px solid var(--line);background:var(--surface2);color:var(--green);font-size:20px;font-weight:700;display:flex;align-items:center;justify-content:center;cursor:pointer;user-select:none;}
   .qty-btn:active{transform:scale(0.94);}
   .qty-val{font-family:'IBM Plex Mono',monospace;font-size:26px;font-weight:700;min-width:36px;text-align:center;}
-  .source-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px;}
+  .source-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px;}
   .source-btn{padding:12px 8px;border-radius:10px;border:1px solid var(--line);background:var(--surface2);color:var(--text);font-size:12.5px;font-weight:600;cursor:pointer;text-align:center;line-height:1.3;}
   .source-btn small{display:block;color:var(--muted);font-weight:400;font-size:10.5px;margin-top:2px;}
   .source-btn.active{border-color:var(--green);color:var(--green);box-shadow:0 0 0 1px var(--green) inset;}
@@ -115,7 +115,8 @@
     <div class="source-grid">
       <div class="source-btn active" data-source="found">Found<small>street/bin</small></div>
       <div class="source-btn" data-source="own_deposit">Own deposit<small>reclaiming</small></div>
-      <div class="source-btn" data-source="brother">Brother's<small>owed back</small></div>
+      <div class="source-btn" data-source="others">For others<small>recycled for someone else</small></div>
+      <div class="source-btn" data-source="scam">🥷 Scam<small>machine trickery</small></div>
     </div>
     <button class="add-btn" id="addBtn">Add</button>
   </div>
@@ -232,12 +233,13 @@ async function loadAndRender(){
   canFill.style.height = Math.min(100, (weekTotal / CAP) * 100) + '%';
   canFill.classList.toggle('over', overCap);
 
-  const bySource = { found: 0, own_deposit: 0, brother: 0 };
+  const bySource = { found: 0, scam: 0, own_deposit: 0, others: 0 };
   (pending || []).forEach(e => { if(e.source in bySource) bySource[e.source] += Number(e.value); });
   const parts = [];
   if(bySource.found > 0) parts.push(`${fmt(bySource.found)} profit`);
+  if(bySource.scam > 0) parts.push(`${fmt(bySource.scam)} scam`);
   if(bySource.own_deposit > 0) parts.push(`${fmt(bySource.own_deposit)} reclaimed`);
-  if(bySource.brother > 0) parts.push(`${fmt(bySource.brother)} brother's`);
+  if(bySource.others > 0) parts.push(`${fmt(bySource.others)} others'`);
   splitRow.textContent = parts.join(' · ');
 
   // group invested rows by invested_at batch for the log
@@ -256,7 +258,7 @@ async function loadAndRender(){
   if(items.length === 0){
     logEl.innerHTML = '<div class="empty">no entries yet</div>';
   } else {
-    const labels = {found:'found', own_deposit:'own deposit', brother:"brother's"};
+    const labels = {found:'found', own_deposit:'own deposit', others:'for others', scam:'scam'};
     logEl.innerHTML = items.slice(0,30).map(it => {
       const d = new Date(it.date);
       const dstr = d.toLocaleDateString('en-GB', {day:'2-digit', month:'2-digit'});

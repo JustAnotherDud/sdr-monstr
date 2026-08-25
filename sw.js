@@ -1,4 +1,4 @@
-const CACHE = 'sdr-monstr-v4';
+const CACHE = 'sdr-monstr-v5';
 const SHELL = ['./', './index.html', './manifest.json', './icons/icon-32.png', './icons/icon-192.png', './icons/icon-512.png'];
 
 self.addEventListener('install', (e) => {
