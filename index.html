@@ -58,6 +58,9 @@
   .entry .meta{color:var(--muted);font-size:10.5px;}
   .entry .val{color:var(--green);font-weight:600;}
   .entry.invest .val{color:var(--amber);}
+  .entry .right{display:flex;align-items:center;gap:8px;}
+  .del-btn{background:none;border:none;color:var(--muted);font-size:14px;line-height:1;cursor:pointer;padding:2px 4px;font-family:'IBM Plex Mono',monospace;}
+  .del-btn:active{color:#FF5C5C;}
   .empty{text-align:center;color:var(--muted);font-size:12px;padding:14px 0;}
   .status{text-align:center;font-size:11px;color:var(--muted);margin-top:14px;font-family:'IBM Plex Mono',monospace;}
   .status.err{color:#FF5C5C;}
@@ -196,7 +199,7 @@ async function loadAndRender(){
     investBatches[k] = (investBatches[k] || 0) + Number(r.value);
   });
   const investEntries = Object.entries(investBatches).map(([date, value]) => ({type:'invest', date, value}));
-  const pendingEntries = (pending || []).map(e => ({type:'entry', date: e.created_at, qty: e.qty, source: e.source, value: Number(e.value), broShare: e.bro_share}));
+  const pendingEntries = (pending || []).map(e => ({type:'entry', id: e.id, date: e.created_at, qty: e.qty, source: e.source, value: Number(e.value), broShare: e.bro_share}));
 
   const items = [...pendingEntries, ...investEntries].sort((a,b) => new Date(b.date) - new Date(a.date));
 
@@ -211,8 +214,17 @@ async function loadAndRender(){
         return `<div class="entry invest"><span>${dstr} · investido</span><span class="val">−${fmt(it.value)}</span></div>`;
       }
       const key = it.source === 'irmao' ? (it.broShare ? 'irmao_full' : 'irmao_none') : it.source;
-      return `<div class="entry"><span>${dstr} · ${it.qty}× <span class="meta">${labels[key]}</span></span><span class="val">+${fmt(it.value)}</span></div>`;
+      return `<div class="entry"><span>${dstr} · ${it.qty}× <span class="meta">${labels[key]}</span></span><span class="right"><span class="val">+${fmt(it.value)}</span><button class="del-btn" data-id="${it.id}" title="apagar">✕</button></span></div>`;
     }).join('');
+    logEl.querySelectorAll('.del-btn').forEach(btn => {
+      btn.onclick = async () => {
+        if(!confirm('Apagar este registo?')) return;
+        btn.disabled = true;
+        const { error } = await supabase.from('bottle_log').delete().eq('id', btn.dataset.id);
+        if(error){ setStatus('erro ao apagar: ' + error.message, true); return; }
+        await loadAndRender();
+      };
+    });
   }
   setStatus('sincronizado');
 }
