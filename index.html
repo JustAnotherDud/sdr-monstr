@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#0A0D0B">
 <link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/icon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -28,6 +31,7 @@
   .can{position:relative;width:88px;height:150px;border-radius:10px 10px 16px 16px;background:var(--surface);border:2px solid var(--line);overflow:hidden;}
   .can-tab{width:34px;height:8px;background:var(--line);border-radius:4px 4px 0 0;margin:0 auto;}
   .can-fill{position:absolute;bottom:0;left:0;right:0;background:linear-gradient(180deg, var(--green) 0%, var(--green-dim) 100%);transition:height 0.5s cubic-bezier(.4,0,.2,1);box-shadow:0 0 20px rgba(124,255,61,0.4);}
+  .can-fill.over{background:linear-gradient(180deg, var(--amber) 0%, #C97F00 100%);box-shadow:0 0 20px rgba(255,177,0,0.4);}
   .total{text-align:center;margin-bottom:4px;}
   .total .amount{font-family:'IBM Plex Mono',monospace;font-weight:700;font-size:42px;color:var(--green);text-shadow:0 0 24px rgba(124,255,61,0.3);}
   .total .label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1.5px;}
@@ -97,7 +101,7 @@
   </div>
   <div class="split-row" id="splitRow"></div>
   <div class="count-row">
-    <span><b id="totalBottles">0</b> bottles</span>
+    <span id="bottlesLine"><b id="totalBottles">0</b> bottles</span>
     <span id="investedLine"><b id="investedTotal">€0.00</b> already invested</span>
   </div>
 
@@ -143,7 +147,7 @@ const SUPABASE_ANON_KEY = 'sb_publishable_KyVdGk01DDLgQ9aGsBhHdQ_UdKEn8Wh';
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 const RATE = 0.10;
-const CAP = 30;
+const CAP = 10; // weekly target shown by the can bar
 let qty = 1;
 let source = 'found';
 
@@ -151,7 +155,7 @@ const qtyVal = document.getElementById('qtyVal');
 const canFill = document.getElementById('canFill');
 const totalAmount = document.getElementById('totalAmount');
 const splitRow = document.getElementById('splitRow');
-const totalBottles = document.getElementById('totalBottles');
+const bottlesLine = document.getElementById('bottlesLine');
 const logEl = document.getElementById('log');
 const investBtn = document.getElementById('investBtn');
 const investForm = document.getElementById('investForm');
@@ -171,11 +175,19 @@ function fmt(n){ return '€' + n.toFixed(2); }
 function fmtShares(n){ return (Math.round(Number(n) * 10000) / 10000).toString(); }
 function setStatus(msg, isErr){ statusLine.textContent = msg; statusLine.className = 'status' + (isErr ? ' err' : ''); }
 
-function currentWeekRange(){
+function pad2(n){ return String(n).padStart(2, '0'); }
+function isoDate(d){ return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`; }
+
+function getWeekBounds(){
   const now = new Date();
   const day = (now.getDay() + 6) % 7; // Monday = 0
   const mon = new Date(now); mon.setDate(now.getDate() - day);
   const sun = new Date(mon); sun.setDate(mon.getDate() + 6);
+  return { mon, sun, monStr: isoDate(mon), sunStr: isoDate(sun) };
+}
+
+function currentWeekRange(){
+  const { mon, sun } = getWeekBounds();
   const f = d => d.toLocaleDateString('en-GB', {day:'2-digit', month:'2-digit'});
   weekRange.textContent = `week ${f(mon)} – ${f(sun)}`;
 }
@@ -201,16 +213,24 @@ async function loadAndRender(){
   if(e1 || e2 || e3){ setStatus('connection error — retrying', true); return; }
 
   const total = (pending || []).reduce((s,e) => s + Number(e.value), 0);
-  const bottles = (pending || []).reduce((s,e) => s + e.qty, 0);
+  const bottles = (pending || []).reduce((s,e) => s + (e.source === 'seed' ? 0 : e.qty), 0);
   const investedSum = (investedRows || []).reduce((s,e) => s + Number(e.value), 0);
   const sharesHeld = (investmentRows || []).reduce((s,r) => s + (r.shares != null ? Number(r.shares) : 0), 0);
 
   pendingTotal = total;
   totalAmount.textContent = fmt(total);
-  totalBottles.textContent = bottles;
+  bottlesLine.innerHTML = `<b>${bottles}</b> ${bottles === 1 ? 'bottle' : 'bottles'}`;
   investedLine.innerHTML = `<b>${fmt(investedSum)}</b> already invested` + (sharesHeld > 0 ? ` · ${fmtShares(sharesHeld)} shares held` : '');
-  canFill.style.height = Math.min(100, (total/CAP)*100) + '%';
   investBtn.disabled = total <= 0;
+
+  const { monStr, sunStr } = getWeekBounds();
+  const weekTotal = (pending || []).reduce((s,e) => {
+    const ld = e.logged_date;
+    return (ld >= monStr && ld <= sunStr) ? s + Number(e.value) : s;
+  }, 0);
+  const overCap = weekTotal > CAP;
+  canFill.style.height = Math.min(100, (weekTotal / CAP) * 100) + '%';
+  canFill.classList.toggle('over', overCap);
 
   const bySource = { found: 0, own_deposit: 0, brother: 0 };
   (pending || []).forEach(e => { if(e.source in bySource) bySource[e.source] += Number(e.value); });
