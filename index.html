@@ -291,7 +291,7 @@ async function loadAndRender(){
   const { monStr, sunStr } = getWeekBounds();
   const weekTotal = (pending || []).reduce((s,e) => {
     const ld = e.logged_date;
-    return (e.source !== 'seed' && ld >= monStr && ld <= sunStr) ? s + Number(e.value) : s;
+    return (e.source !== 'seed' && e.source !== 'carry' && ld >= monStr && ld <= sunStr) ? s + Number(e.value) : s;
   }, 0);
   renderRuler(weekTotal, CAP);
 
