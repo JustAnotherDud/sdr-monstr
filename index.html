@@ -76,6 +76,7 @@
   .invest-form{background:var(--tape);border:1px solid var(--brass);border-radius:8px;padding:16px;margin-top:8px;}
   .invest-form-row{display:flex;justify-content:space-between;align-items:baseline;font-size:12px;color:var(--ink-dim);margin-bottom:12px;}
   .invest-form-row b{font-family:'Martian Mono',monospace;font-size:17px;color:var(--brass);font-variant-numeric:tabular-nums;}
+  .carry-note{font-size:11px;color:var(--ink-dim);margin:-4px 0 12px;}
   .invest-input{width:100%;padding:10px;border-radius:6px;border:1px solid var(--rule);background:var(--bg);color:var(--ink);font-family:'Martian Mono',monospace;font-size:13px;margin-bottom:8px;}
   .invest-input::placeholder{color:var(--ink-dim);}
   .invest-actions{display:flex;gap:8px;margin-top:4px;}
@@ -152,7 +153,8 @@
 
   <button class="invest-btn" type="button" id="investBtn" disabled>Mark as invested (Monster buy)</button>
   <div class="invest-form" id="investForm" style="display:none;">
-    <div class="invest-form-row"><span>Amount</span><b id="investAmount">€0.00</b></div>
+    <div class="invest-form-row"><span>Investing</span><b id="investAmount">€0.00</b></div>
+    <div class="carry-note" id="carryNote" style="display:none;"></div>
     <input class="invest-input" type="number" id="sharePriceInput" placeholder="Price per share (optional)" step="0.01" min="0" inputmode="decimal">
     <input class="invest-input" type="number" id="sharesInput" placeholder="Shares bought (optional)" step="0.0001" min="0" inputmode="decimal">
     <div class="invest-actions">
@@ -194,6 +196,7 @@ const investForm = document.getElementById('investForm');
 const investAmount = document.getElementById('investAmount');
 const sharePriceInput = document.getElementById('sharePriceInput');
 const sharesInput = document.getElementById('sharesInput');
+const carryNote = document.getElementById('carryNote');
 const investCancel = document.getElementById('investCancel');
 const investConfirm = document.getElementById('investConfirm');
 const addBtn = document.getElementById('addBtn');
@@ -202,6 +205,9 @@ const weekRange = document.getElementById('weekRange');
 const investedLine = document.getElementById('investedLine');
 
 let pendingTotal = 0;
+let pendingInvestAmount = 0;
+let pendingRemainder = 0;
+const INVEST_BTN_DEFAULT = 'Mark as invested (Monster buy)';
 
 function fmt(n){ return '€' + n.toFixed(2); }
 function fmtShares(n){ return (Math.round(Number(n) * 10000) / 10000).toString(); }
@@ -260,15 +266,27 @@ async function loadAndRender(){
   if(e1 || e2 || e3){ setStatus('connection error — retrying', true); return; }
 
   const total = (pending || []).reduce((s,e) => s + Number(e.value), 0);
-  const bottles = (pending || []).reduce((s,e) => s + (e.source === 'seed' ? 0 : e.qty), 0);
+  const bottles = (pending || []).reduce((s,e) => s + ((e.source === 'seed' || e.source === 'carry') ? 0 : e.qty), 0);
   const investedSum = (investedRows || []).reduce((s,e) => s + Number(e.value), 0);
   const sharesHeld = (investmentRows || []).reduce((s,r) => s + (r.shares != null ? Number(r.shares) : 0), 0);
 
   pendingTotal = total;
+  pendingInvestAmount = Math.floor(total);
+  pendingRemainder = +(total - pendingInvestAmount).toFixed(2);
   totalAmount.textContent = fmt(total);
   bottlesLine.innerHTML = `<b>${bottles}</b> ${bottles === 1 ? 'bottle' : 'bottles'}`;
   investedLine.innerHTML = `<b>${fmt(investedSum)}</b> already invested` + (sharesHeld > 0 ? ` · ${fmtShares(sharesHeld)} shares held` : '');
-  investBtn.disabled = total <= 0;
+
+  if(pendingInvestAmount < 1){
+    investBtn.disabled = true;
+    const needed = (1 - total).toFixed(2);
+    investBtn.textContent = `Need €${needed} more to invest`;
+    investBtn.title = `Need €${needed} more to invest`;
+  } else {
+    investBtn.disabled = false;
+    investBtn.textContent = INVEST_BTN_DEFAULT;
+    investBtn.removeAttribute('title');
+  }
 
   const { monStr, sunStr } = getWeekBounds();
   const weekTotal = (pending || []).reduce((s,e) => {
@@ -302,7 +320,7 @@ async function loadAndRender(){
   if(items.length === 0){
     logEl.innerHTML = '<div class="empty">Nothing on the tape yet.</div>';
   } else {
-    const labels = {found:'found', own_deposit:'own deposit', others:'for others', scam:'scam'};
+    const labels = {found:'found', own_deposit:'own deposit', others:'for others', scam:'scam', carry:'carried over'};
     logEl.innerHTML = items.slice(0,30).map((it, idx) => {
       const enterClass = (justAdded && idx === 0) ? ' enter' : '';
       const d = new Date(it.date);
@@ -350,7 +368,13 @@ addBtn.onclick = async () => {
 };
 
 investBtn.onclick = () => {
-  investAmount.textContent = fmt(pendingTotal);
+  investAmount.textContent = fmt(pendingInvestAmount);
+  if(pendingRemainder > 0){
+    carryNote.textContent = `€${pendingRemainder.toFixed(2)} carries to next week`;
+    carryNote.style.display = 'block';
+  } else {
+    carryNote.style.display = 'none';
+  }
   investForm.style.display = 'block';
   investBtn.style.display = 'none';
 };
@@ -365,7 +389,8 @@ investCancel.onclick = () => {
 investConfirm.onclick = async () => {
   investConfirm.disabled = true;
   const now = new Date().toISOString();
-  const amount = pendingTotal;
+  const amount = pendingInvestAmount;
+  const remainder = pendingRemainder;
   const price = sharePriceInput.value !== '' ? Number(sharePriceInput.value) : null;
   const shares = sharesInput.value !== '' ? Number(sharesInput.value) : null;
 
@@ -373,6 +398,12 @@ investConfirm.onclick = async () => {
   if(updErr){ setStatus('mark as invested failed: ' + updErr.message, true); investConfirm.disabled = false; return; }
 
   const { error: insErr } = await supabase.from('investments').insert({ invested_at: now, amount, share_price: price, shares });
+
+  let carryErr = null;
+  if(remainder > 0){
+    const res = await supabase.from('bottle_log').insert({ source: 'carry', qty: 1, unit_value: remainder, value: remainder });
+    carryErr = res.error;
+  }
 
   investConfirm.disabled = false;
   sharePriceInput.value = '';
@@ -382,6 +413,7 @@ investConfirm.onclick = async () => {
   await loadAndRender();
 
   if(insErr){ setStatus('bottles marked as invested, but the investment record failed to save: ' + insErr.message, true); }
+  else if(carryErr){ setStatus(`invested, but the €${remainder.toFixed(2)} carry-over failed to save — fix it manually in the database: ` + carryErr.message, true); }
 };
 
 if('serviceWorker' in navigator){
