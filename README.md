@@ -69,3 +69,13 @@ clear the saved connection.
 Vanilla JS, Supabase JS (ESM from `esm.sh`), a service worker (network-first
 for navigations so a deploy is picked up immediately, cache-first for the
 static shell). No framework, no bundler.
+
+### Known debt: the update lag
+
+The service worker precaches the shell (`./`, `./index.html`) with a plain
+fetch, which can be served from the browser HTTP cache. GitHub Pages sends
+HTML with `Cache-Control: max-age=600`, so right after a deploy a returning
+user can keep seeing the previous version for up to ~10 minutes (plus one
+reload) before the SW cache refills. It's short and self-healing, so it's left
+as-is; the fix is to precache with `cache: 'reload'` (`c.addAll(SHELL.map(u =>
+new Request(u, { cache: 'reload' })))` in `sw.js`).

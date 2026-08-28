@@ -1,6 +1,15 @@
 const CACHE = 'sdr-monstr-v10';
 const SHELL = ['./', './index.html', './manifest.json', './icons/icon-32.png', './icons/icon-192.png', './icons/icon-512.png'];
 
+// KNOWN DEBT (28 Aug 2026): the install below caches './' and './index.html'
+// with a plain fetch, which can hit the browser HTTP cache. GitHub Pages
+// serves HTML with Cache-Control: max-age=600, so right after a deploy a
+// returning user can keep seeing the previous version for up to ~10 min
+// (plus one reload) before this cache refills with the new shell. Fix when it
+// matters: precache the shell with `cache: 'reload'`, e.g.
+//   c.addAll(SHELL.map(u => new Request(u, { cache: 'reload' })))
+// Not done now — the flip-flop is short and self-healing.
+
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)));
   self.skipWaiting();
