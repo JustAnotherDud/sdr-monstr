@@ -335,14 +335,13 @@ document.querySelectorAll('.source-btn').forEach(btn => {
 async function loadAndRender(){
   setStatus('syncing…');
   const { data: pending, error: e1 } = await supabase.from('bottle_log').select('*').is('invested_at', null).order('logged_date', {ascending:false});
-  const { data: investedRows, error: e2 } = await supabase.from('bottle_log').select('value, invested_at').not('invested_at', 'is', null);
   const { data: investmentRows, error: e3 } = await supabase.from('investments').select('invested_at, amount, share_price, shares');
 
-  if(e1 || e2 || e3){ setStatus('connection error — retrying', true); return; }
+  if(e1 || e3){ setStatus('connection error — retrying', true); return; }
 
   const total = (pending || []).reduce((s,e) => s + Number(e.value), 0);
   const bottles = (pending || []).reduce((s,e) => s + ((e.source === 'seed' || e.source === 'carry') ? 0 : e.qty), 0);
-  const investedSum = (investedRows || []).reduce((s,e) => s + Number(e.value), 0);
+  const investedSum = (investmentRows || []).reduce((s,r) => s + Number(r.amount), 0);
   const sharesHeld = (investmentRows || []).reduce((s,r) => s + (r.shares != null ? Number(r.shares) : 0), 0);
 
   pendingTotal = total;
@@ -379,15 +378,8 @@ async function loadAndRender(){
   if(bySource.others > 0) parts.push(`${fmt(bySource.others)} others`);
   splitRow.innerHTML = parts.map(p => `<span>${p}</span>`).join('');
 
-  // group invested rows by invested_at batch for the log
-  const investBatches = {};
-  (investedRows || []).forEach(r => {
-    const k = r.invested_at;
-    investBatches[k] = (investBatches[k] || 0) + Number(r.value);
-  });
-  const investDetails = {};
-  (investmentRows || []).forEach(r => { investDetails[r.invested_at] = r; });
-  const investEntries = Object.entries(investBatches).map(([date, value]) => ({type:'invest', date, value, detail: investDetails[date]}));
+  // one history row per investment; amount is the integer actually invested, read from the investments table
+  const investEntries = (investmentRows || []).map(r => ({type:'invest', date: r.invested_at, value: Number(r.amount), detail: r}));
   const pendingEntries = (pending || []).map(e => ({type:'entry', id: e.id, date: e.created_at, qty: e.qty, source: e.source, value: Number(e.value)}));
 
   const items = [...pendingEntries, ...investEntries].sort((a,b) => new Date(b.date) - new Date(a.date));
