@@ -53,8 +53,10 @@
 
   .count-row{display:flex;justify-content:space-between;gap:12px;margin-top:12px;padding-top:12px;border-top:1px solid var(--rule);font-family:'Martian Mono',monospace;font-size:11.5px;color:var(--ink-dim);font-variant-numeric:tabular-nums;}
   .count-row b{color:var(--ink);font-weight:600;}
+  .shares-row{text-align:right;margin-top:4px;font-family:'Martian Mono',monospace;font-size:10.5px;color:var(--ink-dim);font-variant-numeric:tabular-nums;}
+  .shares-row:empty{display:none;}
 
-  .card{margin-top:24px;}
+  .card{margin-top:24px;background:var(--tape);border:1px solid var(--rule);border-radius:10px;padding:16px;}
   .card h3{margin:0 0 12px;font-size:12px;color:var(--ink-dim);font-weight:600;}
 
   .source-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px;}
@@ -71,7 +73,7 @@
   .add-btn{padding:11px 22px;border-radius:8px;border:1px solid var(--cyan);background:var(--tape);color:var(--cyan);font-weight:600;font-size:13px;cursor:pointer;}
   .add-btn:disabled{opacity:0.4;cursor:not-allowed;}
 
-  .invest-btn{width:100%;padding:12px;border-radius:8px;border:1px solid var(--rule);background:transparent;color:var(--ink-dim);font-weight:600;font-size:13px;cursor:pointer;margin-top:8px;}
+  .invest-btn{width:100%;padding:12px;border-radius:8px;border:1px solid var(--rule);background:transparent;color:var(--ink-dim);font-weight:600;font-size:13px;cursor:pointer;margin-top:20px;}
   .invest-btn:disabled{opacity:0.35;cursor:not-allowed;}
   .invest-btn:not(:disabled):hover{border-color:var(--brass);color:var(--brass);}
   .invest-form{background:var(--tape);border:1px solid var(--brass);border-radius:8px;padding:16px;margin-top:8px;}
@@ -166,6 +168,7 @@
     <span id="bottlesLine"><b id="totalBottles">0</b> bottles</span>
     <span id="investedLine"><b id="investedTotal">€0.00</b> already invested</span>
   </div>
+  <div class="shares-row" id="sharesRow"></div>
 
   <div class="card">
     <h3>Add bottles</h3>
@@ -225,7 +228,6 @@ function init(){
     supabase = createClient(url, key);
     setupScreen.classList.add('hidden');
     appScreen.classList.remove('hidden');
-    currentWeekRange();
     loadAndRender();
   } else {
     appScreen.classList.add('hidden');
@@ -255,7 +257,8 @@ document.getElementById('setupSave').onclick = saveSetup;
 document.getElementById('connBtn').onclick = clearSetup;
 
 const RATE = 0.10;
-const CAP = 10; // weekly target shown by the ruler
+const PERIOD_DAYS = 14; // investing cadence: every 2 weeks, anchored on the last invested_at
+const CAP = 20; // target shown by the ruler for each PERIOD_DAYS-day cycle
 let qty = 1;
 let source = 'found';
 let justAdded = false;
@@ -278,6 +281,7 @@ const addBtn = document.getElementById('addBtn');
 const statusLine = document.getElementById('statusLine');
 const weekRange = document.getElementById('weekRange');
 const investedLine = document.getElementById('investedLine');
+const sharesRow = document.getElementById('sharesRow');
 
 let pendingTotal = 0;
 let pendingInvestAmount = 0;
@@ -291,20 +295,34 @@ function setStatus(msg, isErr){ statusLine.textContent = msg; statusLine.classNa
 function pad2(n){ return String(n).padStart(2, '0'); }
 function isoDate(d){ return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`; }
 
-function getWeekBounds(){
-  const now = new Date();
-  const day = (now.getDay() + 6) % 7; // Monday = 0
-  const mon = new Date(now); mon.setDate(now.getDate() - day);
-  const sun = new Date(mon); sun.setDate(mon.getDate() + 6);
-  return { mon, sun, monStr: isoDate(mon), sunStr: isoDate(sun) };
+function addDays(d, n){ const r = new Date(d); r.setDate(r.getDate() + n); return r; }
+
+function mondayOf(d){
+  const day = (d.getDay() + 6) % 7; // Monday = 0
+  const m = new Date(d); m.setDate(d.getDate() - day);
+  m.setHours(0,0,0,0);
+  return m;
 }
 
-function currentWeekRange(){
-  const { mon, sun } = getWeekBounds();
-  const f = d => d.toLocaleDateString('en-GB', {day:'2-digit', month:'2-digit'});
-  weekRange.textContent = `week ${f(mon)} – ${f(sun)}`;
+// The current 2-week cycle starts on the date of the last investment (so the
+// ruler resets exactly when you actually invest, not on a fixed calendar
+// week) — falls back to this week's Monday when there's no investment yet.
+function getPeriodBounds(investmentRows){
+  const now = new Date(); now.setHours(0,0,0,0);
+  const lastInvested = (investmentRows || [])
+    .map(r => r.invested_at).filter(Boolean).sort().pop();
+  const anchor = lastInvested ? new Date(lastInvested.slice(0,10) + 'T00:00:00') : mondayOf(now);
+  const elapsedDays = Math.max(0, Math.floor((now - anchor) / 86400000));
+  const cycles = Math.floor(elapsedDays / PERIOD_DAYS);
+  const start = addDays(anchor, cycles * PERIOD_DAYS);
+  const end = addDays(start, PERIOD_DAYS - 1);
+  return { start, end, startStr: isoDate(start), endStr: isoDate(end) };
 }
-currentWeekRange();
+
+function renderPeriodRange(start, end){
+  const f = d => d.toLocaleDateString('en-GB', {day:'2-digit', month:'2-digit'});
+  weekRange.textContent = `cycle ${f(start)} – ${f(end)}`;
+}
 
 function renderRuler(weekTotal, cap){
   const over = weekTotal > cap;
@@ -349,7 +367,8 @@ async function loadAndRender(){
   pendingRemainder = +(total - pendingInvestAmount).toFixed(2);
   totalAmount.textContent = fmt(total);
   bottlesLine.innerHTML = `<b>${bottles}</b> ${bottles === 1 ? 'bottle' : 'bottles'}`;
-  investedLine.innerHTML = `<b>${fmt(investedSum)}</b> already invested` + (sharesHeld > 0 ? ` · ${fmtShares(sharesHeld)} shares held` : '');
+  investedLine.innerHTML = `<b>${fmt(investedSum)}</b> already invested`;
+  sharesRow.textContent = sharesHeld > 0 ? `${fmtShares(sharesHeld)} shares held` : '';
 
   if(pendingInvestAmount < 1){
     investBtn.disabled = true;
@@ -362,10 +381,11 @@ async function loadAndRender(){
     investBtn.removeAttribute('title');
   }
 
-  const { monStr, sunStr } = getWeekBounds();
+  const { start, end, startStr, endStr } = getPeriodBounds(investmentRows);
+  renderPeriodRange(start, end);
   const weekTotal = (pending || []).reduce((s,e) => {
     const ld = e.logged_date;
-    return (e.source !== 'seed' && e.source !== 'carry' && ld >= monStr && ld <= sunStr) ? s + Number(e.value) : s;
+    return (e.source !== 'seed' && e.source !== 'carry' && ld >= startStr && ld <= endStr) ? s + Number(e.value) : s;
   }, 0);
   renderRuler(weekTotal, CAP);
 
@@ -437,7 +457,7 @@ addBtn.onclick = async () => {
 investBtn.onclick = () => {
   investAmount.textContent = fmt(pendingInvestAmount);
   if(pendingRemainder > 0){
-    carryNote.textContent = `€${pendingRemainder.toFixed(2)} carries to next week`;
+    carryNote.textContent = `€${pendingRemainder.toFixed(2)} carries to next cycle`;
     carryNote.style.display = 'block';
   } else {
     carryNote.style.display = 'none';
