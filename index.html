@@ -402,13 +402,15 @@ async function loadAndRender(){
   const investEntries = (investmentRows || []).map(r => ({type:'invest', date: r.invested_at, value: Number(r.amount), detail: r}));
   const pendingEntries = (pending || []).map(e => ({type:'entry', id: e.id, date: e.created_at, qty: e.qty, source: e.source, value: Number(e.value)}));
 
-  const items = [...pendingEntries, ...investEntries].sort((a,b) => new Date(b.date) - new Date(a.date));
+  // cuts (investEntries) are never truncated — they're rare and the most important record.
+  // only the pending entries get capped, then the two are merged and re-sorted.
+  const items = [...pendingEntries.slice(0,50), ...investEntries].sort((a,b) => new Date(b.date) - new Date(a.date));
 
   if(items.length === 0){
     logEl.innerHTML = '<div class="empty">Nothing on the tape yet.</div>';
   } else {
     const labels = {found:'found', own_deposit:'own deposit', others:'for others', scam:'scam', carry:'carried over'};
-    logEl.innerHTML = items.slice(0,30).map((it, idx) => {
+    logEl.innerHTML = items.map((it, idx) => {
       const enterClass = (justAdded && idx === 0) ? ' enter' : '';
       const d = new Date(it.date);
       const dstr = d.toLocaleDateString('en-GB', {day:'2-digit', month:'2-digit'});
