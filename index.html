@@ -354,17 +354,8 @@ async function loadAndRender(){
   setStatus('syncing…');
   const { data: pending, error: e1 } = await supabase.from('bottle_log').select('*').is('invested_at', null).order('logged_date', {ascending:false});
   const { data: investmentRows, error: e3 } = await supabase.from('investments').select('invested_at, amount, share_price, shares');
-  const { data: investedBottles, error: e4 } = await supabase.from('bottle_log').select('invested_at, source, value').not('invested_at', 'is', null);
 
-  if(e1 || e3 || e4){ setStatus('connection error — retrying', true); return; }
-
-  // per-investment source breakdown, keyed by the investment's invested_at timestamp
-  // (bottle_log rows are stamped with the exact same invested_at value when a cut is made)
-  const investedSourceBySource = {};
-  (investedBottles || []).forEach(b => {
-    const bucket = investedSourceBySource[b.invested_at] || (investedSourceBySource[b.invested_at] = {});
-    bucket[b.source] = (bucket[b.source] || 0) + Number(b.value);
-  });
+  if(e1 || e3){ setStatus('connection error — retrying', true); return; }
 
   const total = (pending || []).reduce((s,e) => s + Number(e.value), 0);
   const bottles = (pending || []).reduce((s,e) => s + ((e.source === 'seed' || e.source === 'carry') ? 0 : e.qty), 0);
@@ -408,7 +399,7 @@ async function loadAndRender(){
   splitRow.innerHTML = parts.map(p => `<span>${p}</span>`).join('');
 
   // one history row per investment; amount is the integer actually invested, read from the investments table
-  const investEntries = (investmentRows || []).map(r => ({type:'invest', date: r.invested_at, value: Number(r.amount), detail: r, sourceBreakdown: investedSourceBySource[r.invested_at] || {}}));
+  const investEntries = (investmentRows || []).map(r => ({type:'invest', date: r.invested_at, value: Number(r.amount), detail: r}));
   const pendingEntries = (pending || []).map(e => ({type:'entry', id: e.id, date: e.created_at, qty: e.qty, source: e.source, value: Number(e.value)}));
 
   // cuts (investEntries) are never truncated — they're rare and the most important record.
@@ -432,11 +423,7 @@ async function loadAndRender(){
           if(det.share_price != null) parts2.push(`@ ${fmt(Number(det.share_price))}`);
           sub = `<div class="entry-sub">${parts2.join(' ')}</div>`;
         }
-        const bd = it.sourceBreakdown || {};
-        const bdLabels = {found:'profit', scam:'scam', own_deposit:'reclaimed', others:'others', seed:'opening balance', carry:'carried over'};
-        const bdParts = Object.keys(bd).filter(k => bd[k] > 0).map(k => `${fmt(bd[k])} ${bdLabels[k] || k}`);
-        const bdSub = bdParts.length ? `<div class="entry-sub">${bdParts.join(' · ')}</div>` : '';
-        return `<div class="entry-block${enterClass}"><div class="cut"><span>cut</span></div><div class="entry invest"><span>${dstr} · invested</span><span class="val">−${fmt(it.value)}</span></div>${sub}${bdSub}</div>`;
+        return `<div class="entry-block${enterClass}"><div class="cut"><span>cut</span></div><div class="entry invest"><span>${dstr} · invested</span><span class="val">−${fmt(it.value)}</span></div>${sub}</div>`;
       }
       if(it.source === 'seed'){
         return `<div class="entry${enterClass}"><span>${dstr} · <span class="meta">opening balance</span></span><span class="right"><span class="val">+${fmt(it.value)}</span><button class="del-btn" type="button" data-id="${it.id}" title="delete">✕</button></span></div>`;
