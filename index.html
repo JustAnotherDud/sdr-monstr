@@ -388,7 +388,7 @@ async function loadAndRender(){
   renderRuler(weekTotal, CAP);
 
   const bySource = { profit: 0, deposit: 0 };
-  (pending || []).forEach(e => { if(e.source in bySource) bySource[e.source] += Number(e.value); });
+  (pending || []).forEach(e => { const s = e.source === 'no_profit' ? 'deposit' : e.source; if(s in bySource) bySource[s] += Number(e.value); });
   const parts = [];
   if(bySource.profit > 0) parts.push(`${fmt(bySource.profit)} profit`);
   if(bySource.deposit > 0) parts.push(`${fmt(bySource.deposit)} depósito`);
@@ -405,7 +405,7 @@ async function loadAndRender(){
   if(items.length === 0){
     logEl.innerHTML = '<div class="empty">Nothing on the tape yet.</div>';
   } else {
-    const labels = {profit:'profit', deposit:'depósito', carry:'carried over'};
+    const labels = {profit:'profit', deposit:'depósito', no_profit:'depósito', carry:'carried over'};
     logEl.innerHTML = items.map((it, idx) => {
       const enterClass = (justAdded && idx === 0) ? ' enter' : '';
       const d = new Date(it.date);
