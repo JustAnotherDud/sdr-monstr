@@ -8,7 +8,7 @@ const SHELL = ['./', './index.html', './manifest.json', './icons/icon-32.png', '
 // (plus one reload) before this cache refills with the new shell. Fix when it
 // matters: precache the shell with `cache: 'reload'`, e.g.
 //   c.addAll(SHELL.map(u => new Request(u, { cache: 'reload' })))
-// Not done now — the flip-flop is short and self-healing.
+// Not done now, the flip-flop is short and self-healing.
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)));
@@ -24,7 +24,7 @@ self.addEventListener('activate', (e) => {
 
 self.addEventListener('fetch', (e) => {
   const url = new URL(e.request.url);
-  // Never cache Supabase API calls — always go to network
+  // Never cache Supabase API calls, always go to network
   if (url.hostname.endsWith('supabase.co')) return;
 
   // App navigations: network-first, so a new deploy is picked up immediately.
