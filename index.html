@@ -174,7 +174,7 @@
     <h3>Add bottles</h3>
     <div class="source-grid">
       <button class="source-btn active" type="button" data-source="profit">Profit<small>found or scam</small></button>
-      <button class="source-btn" type="button" data-source="no_profit">No profit<small>own deposit or for others</small></button>
+      <button class="source-btn" type="button" data-source="deposit">Depósito<small>reclaiming or favor</small></button>
     </div>
     <div class="add-row">
       <div class="qty-row">
@@ -387,11 +387,11 @@ async function loadAndRender(){
   }, 0);
   renderRuler(weekTotal, CAP);
 
-  const bySource = { profit: 0, no_profit: 0 };
+  const bySource = { profit: 0, deposit: 0 };
   (pending || []).forEach(e => { if(e.source in bySource) bySource[e.source] += Number(e.value); });
   const parts = [];
   if(bySource.profit > 0) parts.push(`${fmt(bySource.profit)} profit`);
-  if(bySource.no_profit > 0) parts.push(`${fmt(bySource.no_profit)} no profit`);
+  if(bySource.deposit > 0) parts.push(`${fmt(bySource.deposit)} depósito`);
   splitRow.innerHTML = parts.map(p => `<span>${p}</span>`).join('');
 
   // one history row per investment; amount is the integer actually invested, read from the investments table
@@ -405,7 +405,7 @@ async function loadAndRender(){
   if(items.length === 0){
     logEl.innerHTML = '<div class="empty">Nothing on the tape yet.</div>';
   } else {
-    const labels = {profit:'profit', no_profit:'no profit', carry:'carried over'};
+    const labels = {profit:'profit', deposit:'depósito', carry:'carried over'};
     logEl.innerHTML = items.map((it, idx) => {
       const enterClass = (justAdded && idx === 0) ? ' enter' : '';
       const d = new Date(it.date);
