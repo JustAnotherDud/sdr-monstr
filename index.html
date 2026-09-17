@@ -173,10 +173,8 @@
   <div class="card">
     <h3>Add bottles</h3>
     <div class="source-grid">
-      <button class="source-btn active" type="button" data-source="found">Found<small>street/bin</small></button>
-      <button class="source-btn" type="button" data-source="own_deposit">Own deposit<small>reclaiming</small></button>
-      <button class="source-btn" type="button" data-source="others">For others<small>recycled for someone else</small></button>
-      <button class="source-btn" type="button" data-source="scam">🥷 Scam<small>machine trickery</small></button>
+      <button class="source-btn active" type="button" data-source="profit">Profit<small>found or scam</small></button>
+      <button class="source-btn" type="button" data-source="no_profit">No profit<small>own deposit or for others</small></button>
     </div>
     <div class="add-row">
       <div class="qty-row">
@@ -260,7 +258,7 @@ const RATE = 0.10;
 const PERIOD_DAYS = 14; // investing cadence: every 2 weeks, anchored on the last invested_at
 const CAP = 20; // target shown by the ruler for each PERIOD_DAYS-day cycle
 let qty = 1;
-let source = 'found';
+let source = 'profit';
 let justAdded = false;
 
 const qtyVal = document.getElementById('qtyVal');
@@ -389,13 +387,11 @@ async function loadAndRender(){
   }, 0);
   renderRuler(weekTotal, CAP);
 
-  const bySource = { found: 0, scam: 0, own_deposit: 0, others: 0 };
+  const bySource = { profit: 0, no_profit: 0 };
   (pending || []).forEach(e => { if(e.source in bySource) bySource[e.source] += Number(e.value); });
   const parts = [];
-  if(bySource.found > 0) parts.push(`${fmt(bySource.found)} profit`);
-  if(bySource.scam > 0) parts.push(`${fmt(bySource.scam)} scam`);
-  if(bySource.own_deposit > 0) parts.push(`${fmt(bySource.own_deposit)} reclaimed`);
-  if(bySource.others > 0) parts.push(`${fmt(bySource.others)} others`);
+  if(bySource.profit > 0) parts.push(`${fmt(bySource.profit)} profit`);
+  if(bySource.no_profit > 0) parts.push(`${fmt(bySource.no_profit)} no profit`);
   splitRow.innerHTML = parts.map(p => `<span>${p}</span>`).join('');
 
   // one history row per investment; amount is the integer actually invested, read from the investments table
@@ -409,7 +405,7 @@ async function loadAndRender(){
   if(items.length === 0){
     logEl.innerHTML = '<div class="empty">Nothing on the tape yet.</div>';
   } else {
-    const labels = {found:'found', own_deposit:'own deposit', others:'for others', scam:'scam', carry:'carried over'};
+    const labels = {profit:'profit', no_profit:'no profit', carry:'carried over'};
     logEl.innerHTML = items.map((it, idx) => {
       const enterClass = (justAdded && idx === 0) ? ' enter' : '';
       const d = new Date(it.date);
