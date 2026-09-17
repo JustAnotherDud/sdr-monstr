@@ -174,7 +174,7 @@
 
   <div class="split-row" id="splitRow"></div>
   <div class="count-row">
-    <span id="investedLine"><b id="investedTotal">€0.00</b> already invested</span>
+    <span id="investedLine"><b id="investedTotal">€0.00</b> invested</span>
   </div>
 
   <div class="card">
@@ -380,7 +380,7 @@ async function loadAndRender(){
   pendingInvestAmount = Math.floor(total);
   pendingRemainder = +(total - pendingInvestAmount).toFixed(2);
   totalAmount.textContent = fmt(total);
-  investedLine.innerHTML = `<b>${fmt(investedSum)}</b> already invested${sharesHeld > 0 ? ` · ${fmtShares(sharesHeld)} shares held` : ''}`;
+  investedLine.innerHTML = `<b>${fmt(investedSum)}</b> invested${sharesHeld > 0 ? ` · ${fmtShares(sharesHeld)} shares held` : ''}`;
 
   if(pendingInvestAmount < 1){
     investBtn.disabled = true;
