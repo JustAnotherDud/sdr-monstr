@@ -356,44 +356,35 @@ function renderCycleProgress(start, end){
 }
 
 // current MNST price in EUR, cached in localStorage since it's an external
-// fetch (Finnhub quote + Frankfurter FX rate) that can fail or rate-limit.
-// Finnhub (unlike Yahoo's undocumented endpoints) documents CORS support for
-// client-side apps, but needs a free API key — see the setup screen.
+// fetch that can fail or rate-limit. Finnhub doesn't reliably support CORS
+// for direct browser calls (finnhubio/Finnhub-API#286), so the actual quote
+// + FX conversion happens server-side in the "mnst-price" Supabase Edge
+// Function, which the browser can call cross-origin without issue.
 const SHARE_PRICE_CACHE_KEY = 'sdr_share_price_cache';
 const SHARE_PRICE_CACHE_MS = 15 * 60 * 1000;
 
-// TEMP DEBUG (remove once the price fetch is confirmed working): returns
-// { eur } on success or { error } with a short reason, instead of silently
-// swallowing failures, so the actual cause shows up on screen.
 async function fetchSharePriceEUR(){
   const finnhubKey = localStorage.getItem('sdr_finnhub_key');
+  const supabaseUrl = localStorage.getItem('sdr_url');
   if(!finnhubKey) return { error: 'no key saved' };
 
   const cached = JSON.parse(localStorage.getItem(SHARE_PRICE_CACHE_KEY) || 'null');
   if(cached && Date.now() - cached.ts < SHARE_PRICE_CACHE_MS) return { eur: cached.eur };
 
-  let quoteRes, fxRes;
+  let res;
   try {
-    [quoteRes, fxRes] = await Promise.all([
-      fetch(`https://finnhub.io/api/v1/quote?symbol=MNST&token=${finnhubKey}`),
-      fetch('https://api.frankfurter.app/latest?from=USD&to=EUR')
-    ]);
+    res = await fetch(`${supabaseUrl}/functions/v1/mnst-price`, {
+      headers: { 'x-finnhub-key': finnhubKey }
+    });
   } catch(networkErr){
-    return { error: `network/CORS: ${networkErr.message}` };
+    return { error: `network error: ${networkErr.message}` };
   }
-  if(!quoteRes.ok) return { error: `finnhub HTTP ${quoteRes.status}` };
-  if(!fxRes.ok) return { error: `fx HTTP ${fxRes.status}` };
+  const json = await res.json().catch(() => ({}));
+  if(!res.ok || json.error) return { error: json.error || `HTTP ${res.status}` };
+  if(json.eur == null) return { error: 'no price in response' };
 
-  const quoteJson = await quoteRes.json();
-  const fxJson = await fxRes.json();
-  const usd = quoteJson?.c;
-  const rate = fxJson?.rates?.EUR;
-  if(!usd) return { error: `no price in response: ${JSON.stringify(quoteJson)}` };
-  if(!rate) return { error: 'no fx rate in response' };
-
-  const eur = usd * rate;
-  localStorage.setItem(SHARE_PRICE_CACHE_KEY, JSON.stringify({ eur, ts: Date.now() }));
-  return { eur };
+  localStorage.setItem(SHARE_PRICE_CACHE_KEY, JSON.stringify({ eur: json.eur, ts: Date.now() }));
+  return { eur: json.eur };
 }
 
 function renderSharePrice(){
