@@ -144,6 +144,7 @@
   </label>
   <label>Finnhub API key (optional, for live MNST price)
     <input type="text" id="setup-finnhub" placeholder="free key from finnhub.io" autocomplete="off">
+    <span id="setup-finnhub-count" style="font-size:10.5px;color:var(--ink-dim);"></span>
   </label>
   <button class="save-btn" type="button" id="setupSave">Save and continue</button>
   <p id="setup-error"></p>
@@ -234,6 +235,16 @@ const appScreen = document.getElementById('app');
 const setupUrl = document.getElementById('setup-url');
 const setupKey = document.getElementById('setup-key');
 const setupFinnhub = document.getElementById('setup-finnhub');
+const setupFinnhubCount = document.getElementById('setup-finnhub-count');
+
+// live length feedback so a doubled paste (a known Finnhub dashboard copy
+// bug) is obvious before saving, without anyone needing to read the key
+setupFinnhub.addEventListener('input', () => {
+  const n = setupFinnhub.value.trim().length;
+  if(n === 0){ setupFinnhubCount.textContent = ''; return; }
+  setupFinnhubCount.textContent = n === 20 ? `${n} characters ✓` : `${n} characters (expected 20 — looks doubled or truncated?)`;
+  setupFinnhubCount.style.color = n === 20 ? 'var(--cyan)' : 'var(--err)';
+});
 const setupError = document.getElementById('setup-error');
 
 function init(){
