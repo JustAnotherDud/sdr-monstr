@@ -140,9 +140,13 @@
   <label>Anon / publishable key
     <input type="text" id="setup-key" placeholder="sb_publishable_&hellip; or eyJ&hellip;" autocomplete="off">
   </label>
+  <label>Finnhub API key (optional, for live MNST price)
+    <input type="text" id="setup-finnhub" placeholder="free key from finnhub.io" autocomplete="off">
+  </label>
   <button class="save-btn" type="button" id="setupSave">Save and continue</button>
   <p id="setup-error"></p>
   <p>The key needs read/write on those two tables only &mdash; scope the project's RLS accordingly.</p>
+  <p>The Finnhub key is free (finnhub.io, no card) and only used to show the current MNST share price &mdash; leave it blank to skip that.</p>
 </div>
 
 <div class="app hidden" id="app">
@@ -226,6 +230,7 @@ const setupScreen = document.getElementById('setup-screen');
 const appScreen = document.getElementById('app');
 const setupUrl = document.getElementById('setup-url');
 const setupKey = document.getElementById('setup-key');
+const setupFinnhub = document.getElementById('setup-finnhub');
 const setupError = document.getElementById('setup-error');
 
 function init(){
@@ -245,17 +250,26 @@ function init(){
 function saveSetup(){
   const url = setupUrl.value.trim().replace(/\/+$/, '');
   const key = setupKey.value.trim();
+  const finnhubKey = setupFinnhub.value.trim();
   if(!url || !key){ setupError.textContent = 'Fill in both the URL and the key.'; return; }
   setupError.textContent = '';
   localStorage.setItem('sdr_url', url);
   localStorage.setItem('sdr_key', key);
+  if(finnhubKey) localStorage.setItem('sdr_finnhub_key', finnhubKey);
+  else localStorage.removeItem('sdr_finnhub_key');
   init();
 }
 
 function clearSetup(){
   if(!confirm('Forget the saved connection in this browser?')) return;
+  // prefill so re-adding is just "add the missing field and Save", not
+  // retyping everything from scratch
+  setupUrl.value = localStorage.getItem('sdr_url') || '';
+  setupKey.value = localStorage.getItem('sdr_key') || '';
+  setupFinnhub.value = localStorage.getItem('sdr_finnhub_key') || '';
   localStorage.removeItem('sdr_url');
   localStorage.removeItem('sdr_key');
+  localStorage.removeItem('sdr_finnhub_key');
   supabase = null;
   init();
 }
@@ -338,23 +352,27 @@ function renderCycleProgress(start, end){
 }
 
 // current MNST price in EUR, cached in localStorage since it's an external
-// fetch (Yahoo Finance quote + Frankfurter FX rate) that can fail or rate-limit
+// fetch (Finnhub quote + Frankfurter FX rate) that can fail or rate-limit.
+// Finnhub (unlike Yahoo's undocumented endpoints) documents CORS support for
+// client-side apps, but needs a free API key — see the setup screen.
 const SHARE_PRICE_CACHE_KEY = 'sdr_share_price_cache';
 const SHARE_PRICE_CACHE_MS = 15 * 60 * 1000;
 
 async function fetchSharePriceEUR(){
+  const finnhubKey = localStorage.getItem('sdr_finnhub_key');
+  if(!finnhubKey) return null;
   try {
     const cached = JSON.parse(localStorage.getItem(SHARE_PRICE_CACHE_KEY) || 'null');
     if(cached && Date.now() - cached.ts < SHARE_PRICE_CACHE_MS) return cached.eur;
 
     const [quoteRes, fxRes] = await Promise.all([
-      fetch('https://query1.finance.yahoo.com/v8/finance/chart/MNST?interval=1d&range=1d'),
+      fetch(`https://finnhub.io/api/v1/quote?symbol=MNST&token=${finnhubKey}`),
       fetch('https://api.frankfurter.app/latest?from=USD&to=EUR')
     ]);
     if(!quoteRes.ok || !fxRes.ok) throw new Error('bad response');
     const quoteJson = await quoteRes.json();
     const fxJson = await fxRes.json();
-    const usd = quoteJson?.chart?.result?.[0]?.meta?.regularMarketPrice;
+    const usd = quoteJson?.c;
     const rate = fxJson?.rates?.EUR;
     if(!usd || !rate) throw new Error('missing price or rate');
 
