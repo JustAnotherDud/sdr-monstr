@@ -42,6 +42,8 @@
   .portfolio-stat{text-align:center;}
   .portfolio-value{font-family:'Martian Mono',monospace;font-weight:600;font-size:19px;color:var(--ink);font-variant-numeric:tabular-nums;letter-spacing:-0.2px;}
   .portfolio-label{font-size:10.5px;color:var(--ink-dim);margin-top:2px;}
+  .price-debug{margin-top:6px;text-align:center;font-family:'Martian Mono',monospace;font-size:9.5px;color:var(--err);word-break:break-word;}
+  .price-debug:empty{display:none;}
 
   .cycle-progress{margin-top:8px;}
   .cycle-track{height:3px;border-radius:2px;background:var(--rule);overflow:hidden;}
@@ -182,6 +184,7 @@
       <div class="portfolio-label">MNST price</div>
     </div>
   </div>
+  <div class="price-debug" id="sharePriceDebug"></div>
 
   <div class="card">
     <h3>Add bottles</h3>
@@ -302,6 +305,7 @@ const weekRange = document.getElementById('weekRange');
 const investedTotal = document.getElementById('investedTotal');
 const sharesHeldStat = document.getElementById('sharesHeldStat');
 const sharePriceStat = document.getElementById('sharePriceStat');
+const sharePriceDebug = document.getElementById('sharePriceDebug');
 
 let pendingTotal = 0;
 let pendingInvestAmount = 0;
@@ -358,35 +362,49 @@ function renderCycleProgress(start, end){
 const SHARE_PRICE_CACHE_KEY = 'sdr_share_price_cache';
 const SHARE_PRICE_CACHE_MS = 15 * 60 * 1000;
 
+// TEMP DEBUG (remove once the price fetch is confirmed working): returns
+// { eur } on success or { error } with a short reason, instead of silently
+// swallowing failures, so the actual cause shows up on screen.
 async function fetchSharePriceEUR(){
   const finnhubKey = localStorage.getItem('sdr_finnhub_key');
-  if(!finnhubKey) return null;
-  try {
-    const cached = JSON.parse(localStorage.getItem(SHARE_PRICE_CACHE_KEY) || 'null');
-    if(cached && Date.now() - cached.ts < SHARE_PRICE_CACHE_MS) return cached.eur;
+  if(!finnhubKey) return { error: 'no key saved' };
 
-    const [quoteRes, fxRes] = await Promise.all([
+  const cached = JSON.parse(localStorage.getItem(SHARE_PRICE_CACHE_KEY) || 'null');
+  if(cached && Date.now() - cached.ts < SHARE_PRICE_CACHE_MS) return { eur: cached.eur };
+
+  let quoteRes, fxRes;
+  try {
+    [quoteRes, fxRes] = await Promise.all([
       fetch(`https://finnhub.io/api/v1/quote?symbol=MNST&token=${finnhubKey}`),
       fetch('https://api.frankfurter.app/latest?from=USD&to=EUR')
     ]);
-    if(!quoteRes.ok || !fxRes.ok) throw new Error('bad response');
-    const quoteJson = await quoteRes.json();
-    const fxJson = await fxRes.json();
-    const usd = quoteJson?.c;
-    const rate = fxJson?.rates?.EUR;
-    if(!usd || !rate) throw new Error('missing price or rate');
-
-    const eur = usd * rate;
-    localStorage.setItem(SHARE_PRICE_CACHE_KEY, JSON.stringify({ eur, ts: Date.now() }));
-    return eur;
-  } catch(err){
-    return null;
+  } catch(networkErr){
+    return { error: `network/CORS: ${networkErr.message}` };
   }
+  if(!quoteRes.ok) return { error: `finnhub HTTP ${quoteRes.status}` };
+  if(!fxRes.ok) return { error: `fx HTTP ${fxRes.status}` };
+
+  const quoteJson = await quoteRes.json();
+  const fxJson = await fxRes.json();
+  const usd = quoteJson?.c;
+  const rate = fxJson?.rates?.EUR;
+  if(!usd) return { error: `no price in response: ${JSON.stringify(quoteJson)}` };
+  if(!rate) return { error: 'no fx rate in response' };
+
+  const eur = usd * rate;
+  localStorage.setItem(SHARE_PRICE_CACHE_KEY, JSON.stringify({ eur, ts: Date.now() }));
+  return { eur };
 }
 
 function renderSharePrice(){
-  fetchSharePriceEUR().then(eur => {
-    sharePriceStat.textContent = eur != null ? fmt(eur) : '—';
+  fetchSharePriceEUR().then(result => {
+    if(result.eur != null){
+      sharePriceStat.textContent = fmt(result.eur);
+      sharePriceDebug.textContent = '';
+    } else {
+      sharePriceStat.textContent = '—';
+      sharePriceDebug.textContent = result.error || '';
+    }
   });
 }
 
