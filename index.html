@@ -38,21 +38,10 @@
   .total .amount{font-family:'Martian Mono',monospace;font-weight:600;font-size:44px;color:var(--ink);font-variant-numeric:tabular-nums;letter-spacing:-0.5px;}
   .total .label{font-size:12px;color:var(--ink-dim);margin-top:2px;}
 
-  .ruler-wrap{position:relative;height:28px;margin:20px 0 4px;}
-  .ruler-wrap::before{content:'';position:absolute;left:0;right:0;bottom:6px;height:1px;background:var(--rule);}
-  .rtick{position:absolute;bottom:6px;width:1px;height:5px;background:var(--rule);}
-  .rtick.tall{height:10px;}
-  .rtarget{position:absolute;bottom:6px;width:2px;height:15px;background:var(--ink-dim);transform:translateX(-1px);}
-  .rtarget b{position:absolute;top:-14px;left:50%;transform:translateX(-50%);font-family:'Martian Mono',monospace;font-weight:600;font-size:9.5px;color:var(--ink-dim);white-space:nowrap;}
-  .rind{position:absolute;bottom:4px;width:3px;height:19px;border-radius:2px;background:var(--cyan);transform:translateX(-1.5px);transition:left .4s ease, background .3s ease;}
-  .rind.over{background:var(--brass);}
-  .rind::after{content:'';position:absolute;top:-5px;left:50%;transform:translateX(-50%);width:6px;height:6px;border-radius:50%;background:inherit;}
-
-  .split-row{display:grid;grid-template-columns:1fr 1fr;gap:4px 16px;font-size:11px;color:var(--ink-dim);font-family:'Martian Mono',monospace;margin:16px 0 4px;font-variant-numeric:tabular-nums;}
-  .split-row span{text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-
-  .count-row{margin-top:12px;padding-top:12px;border-top:1px solid var(--rule);font-family:'Martian Mono',monospace;font-size:11.5px;color:var(--ink-dim);font-variant-numeric:tabular-nums;}
-  .count-row b{color:var(--ink);font-weight:600;}
+  .portfolio{display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;margin-top:20px;padding-top:16px;border-top:1px solid var(--rule);}
+  .portfolio-stat{text-align:center;}
+  .portfolio-value{font-family:'Martian Mono',monospace;font-weight:600;font-size:19px;color:var(--ink);font-variant-numeric:tabular-nums;letter-spacing:-0.2px;}
+  .portfolio-label{font-size:10.5px;color:var(--ink-dim);margin-top:2px;}
 
   .cycle-progress{margin-top:8px;}
   .cycle-track{height:3px;border-radius:2px;background:var(--rule);overflow:hidden;}
@@ -92,7 +81,12 @@
   .invest-confirm{border:1px solid var(--brass);background:var(--brass);color:var(--bg);}
 
   .tape{background:var(--tape);border-radius:8px 8px 0 0;padding:16px 16px 0;margin-top:24px;}
-  .tape h3{margin:0 0 12px;font-size:12px;color:var(--ink-dim);font-weight:600;}
+  .tape summary{margin:0 0 12px;font-size:12px;color:var(--ink-dim);font-weight:600;cursor:pointer;list-style:none;display:flex;align-items:center;justify-content:space-between;}
+  .tape summary::-webkit-details-marker{display:none;}
+  .tape summary::after{content:'▾';font-size:10px;transition:transform .2s ease;}
+  .tape[open] summary::after{transform:rotate(180deg);}
+  .tape:not([open]){padding-bottom:16px;}
+  .tape:not([open]) .tape-tear{display:none;}
   .tape-tear{height:12px;margin:0 -16px;background-image:
       linear-gradient(45deg, transparent 33.333%, var(--bg) 33.333%, var(--bg) 66.667%, transparent 66.667%),
       linear-gradient(-45deg, transparent 33.333%, var(--bg) 33.333%, var(--bg) 66.667%, transparent 66.667%);
@@ -170,11 +164,19 @@
     <div class="label">to invest</div>
   </div>
 
-  <div class="ruler-wrap" id="rulerWrap" role="img"></div>
-
-  <div class="split-row" id="splitRow"></div>
-  <div class="count-row">
-    <span id="investedLine"><b id="investedTotal">€0.00</b> invested</span>
+  <div class="portfolio">
+    <div class="portfolio-stat">
+      <div class="portfolio-value" id="investedTotal">€0.00</div>
+      <div class="portfolio-label">invested</div>
+    </div>
+    <div class="portfolio-stat">
+      <div class="portfolio-value" id="sharesHeldStat">0</div>
+      <div class="portfolio-label">shares</div>
+    </div>
+    <div class="portfolio-stat">
+      <div class="portfolio-value" id="sharePriceStat">—</div>
+      <div class="portfolio-label">MNST price</div>
+    </div>
   </div>
 
   <div class="card">
@@ -205,11 +207,11 @@
     </div>
   </div>
 
-  <div class="tape">
-    <h3>History</h3>
+  <details class="tape">
+    <summary>History</summary>
     <div id="log"><div class="empty">loading…</div></div>
     <div class="tape-tear" aria-hidden="true"></div>
-  </div>
+  </details>
 
   <div class="status" id="statusLine"></div>
 </div>
@@ -263,15 +265,12 @@ document.getElementById('connBtn').onclick = clearSetup;
 
 const RATE = 0.10;
 const PERIOD_DAYS = 14; // investing cadence: every 2 weeks, anchored on the last invested_at
-const CAP = 20; // target shown by the ruler for each PERIOD_DAYS-day cycle
 let qty = 1;
 let source = 'profit';
 let justAdded = false;
 
 const qtyVal = document.getElementById('qtyVal');
-const rulerWrap = document.getElementById('rulerWrap');
 const totalAmount = document.getElementById('totalAmount');
-const splitRow = document.getElementById('splitRow');
 const cycleFill = document.getElementById('cycleFill');
 const cycleDays = document.getElementById('cycleDays');
 const logEl = document.getElementById('log');
@@ -286,7 +285,9 @@ const investConfirm = document.getElementById('investConfirm');
 const addBtn = document.getElementById('addBtn');
 const statusLine = document.getElementById('statusLine');
 const weekRange = document.getElementById('weekRange');
-const investedLine = document.getElementById('investedLine');
+const investedTotal = document.getElementById('investedTotal');
+const sharesHeldStat = document.getElementById('sharesHeldStat');
+const sharePriceStat = document.getElementById('sharePriceStat');
 
 let pendingTotal = 0;
 let pendingInvestAmount = 0;
@@ -297,9 +298,6 @@ function fmt(n){ return '€' + n.toFixed(2); }
 function fmtShares(n){ return (Math.round(Number(n) * 10000) / 10000).toString(); }
 function setStatus(msg, isErr){ statusLine.textContent = msg; statusLine.className = 'status' + (isErr ? ' err' : ''); }
 
-function pad2(n){ return String(n).padStart(2, '0'); }
-function isoDate(d){ return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`; }
-
 function addDays(d, n){ const r = new Date(d); r.setDate(r.getDate() + n); return r; }
 
 function mondayOf(d){
@@ -309,9 +307,9 @@ function mondayOf(d){
   return m;
 }
 
-// The current 2-week cycle starts on the date of the last investment (so the
-// ruler resets exactly when you actually invest, not on a fixed calendar
-// week). Falls back to this week's Monday when there's no investment yet.
+// The current 2-week cycle starts on the date of the last investment (so it
+// resets exactly when you actually invest, not on a fixed calendar week).
+// Falls back to this week's Monday when there's no investment yet.
 function getPeriodBounds(investmentRows){
   const now = new Date(); now.setHours(0,0,0,0);
   const lastInvested = (investmentRows || [])
@@ -321,7 +319,7 @@ function getPeriodBounds(investmentRows){
   const cycles = Math.floor(elapsedDays / PERIOD_DAYS);
   const start = addDays(anchor, cycles * PERIOD_DAYS);
   const end = addDays(start, PERIOD_DAYS - 1);
-  return { start, end, startStr: isoDate(start), endStr: isoDate(end) };
+  return { start, end };
 }
 
 function renderPeriodRange(start, end){
@@ -329,7 +327,7 @@ function renderPeriodRange(start, end){
   weekRange.textContent = `cycle ${f(start)} – ${f(end)}`;
 }
 
-// visual countdown to the end of the current cycle, alongside the amount ruler
+// visual countdown to the end of the current cycle
 function renderCycleProgress(start, end){
   const now = new Date(); now.setHours(0,0,0,0);
   const elapsed = Math.min(PERIOD_DAYS, Math.max(0, Math.round((now - start) / 86400000)));
@@ -339,19 +337,39 @@ function renderCycleProgress(start, end){
   cycleDays.textContent = daysLeft <= 1 ? 'last day' : `${daysLeft} days left`;
 }
 
-function renderRuler(weekTotal, cap){
-  const over = weekTotal > cap;
-  const scaleMax = over ? weekTotal * 1.12 : cap;
-  const maxTickValue = Math.floor(scaleMax);
-  let ticks = '';
-  for(let v = 0; v <= maxTickValue; v++){
-    const pct = (v / scaleMax) * 100;
-    ticks += `<i class="rtick${v % 2 === 0 ? ' tall' : ''}" style="left:${pct}%"></i>`;
+// current MNST price in EUR, cached in localStorage since it's an external
+// fetch (Yahoo Finance quote + Frankfurter FX rate) that can fail or rate-limit
+const SHARE_PRICE_CACHE_KEY = 'sdr_share_price_cache';
+const SHARE_PRICE_CACHE_MS = 15 * 60 * 1000;
+
+async function fetchSharePriceEUR(){
+  try {
+    const cached = JSON.parse(localStorage.getItem(SHARE_PRICE_CACHE_KEY) || 'null');
+    if(cached && Date.now() - cached.ts < SHARE_PRICE_CACHE_MS) return cached.eur;
+
+    const [quoteRes, fxRes] = await Promise.all([
+      fetch('https://query1.finance.yahoo.com/v8/finance/chart/MNST?interval=1d&range=1d'),
+      fetch('https://api.frankfurter.app/latest?from=USD&to=EUR')
+    ]);
+    if(!quoteRes.ok || !fxRes.ok) throw new Error('bad response');
+    const quoteJson = await quoteRes.json();
+    const fxJson = await fxRes.json();
+    const usd = quoteJson?.chart?.result?.[0]?.meta?.regularMarketPrice;
+    const rate = fxJson?.rates?.EUR;
+    if(!usd || !rate) throw new Error('missing price or rate');
+
+    const eur = usd * rate;
+    localStorage.setItem(SHARE_PRICE_CACHE_KEY, JSON.stringify({ eur, ts: Date.now() }));
+    return eur;
+  } catch(err){
+    return null;
   }
-  const targetPct = Math.min(100, (cap / scaleMax) * 100);
-  const indPct = Math.min(100, (weekTotal / scaleMax) * 100);
-  rulerWrap.setAttribute('aria-label', `${fmt(weekTotal)} of ${fmt(cap)} this week`);
-  rulerWrap.innerHTML = `${ticks}<i class="rtarget" style="left:${targetPct}%"><b>€${cap}</b></i><i class="rind${over ? ' over' : ''}" style="left:${indPct}%"></i>`;
+}
+
+function renderSharePrice(){
+  fetchSharePriceEUR().then(eur => {
+    sharePriceStat.textContent = eur != null ? fmt(eur) : '—';
+  });
 }
 
 document.getElementById('qtyMinus').onclick = () => { qty = Math.max(1, qty-1); qtyVal.textContent = qty; };
@@ -380,7 +398,9 @@ async function loadAndRender(){
   pendingInvestAmount = Math.floor(total);
   pendingRemainder = +(total - pendingInvestAmount).toFixed(2);
   totalAmount.textContent = fmt(total);
-  investedLine.innerHTML = `<b>${fmt(investedSum)}</b> invested${sharesHeld > 0 ? ` · ${fmtShares(sharesHeld)} shares held` : ''}`;
+  investedTotal.textContent = fmt(investedSum);
+  sharesHeldStat.textContent = sharesHeld > 0 ? fmtShares(sharesHeld) : '0';
+  renderSharePrice();
 
   if(pendingInvestAmount < 1){
     investBtn.disabled = true;
@@ -393,21 +413,9 @@ async function loadAndRender(){
     investBtn.removeAttribute('title');
   }
 
-  const { start, end, startStr, endStr } = getPeriodBounds(investmentRows);
+  const { start, end } = getPeriodBounds(investmentRows);
   renderPeriodRange(start, end);
   renderCycleProgress(start, end);
-  const weekTotal = (pending || []).reduce((s,e) => {
-    const ld = e.logged_date;
-    return (e.source !== 'seed' && e.source !== 'carry' && ld >= startStr && ld <= endStr) ? s + Number(e.value) : s;
-  }, 0);
-  renderRuler(weekTotal, CAP);
-
-  const bySource = { profit: 0, deposit: 0 };
-  (pending || []).forEach(e => { const s = e.source === 'no_profit' ? 'deposit' : e.source; if(s in bySource) bySource[s] += Number(e.value); });
-  const parts = [];
-  if(bySource.profit > 0) parts.push(`${fmt(bySource.profit)} profit`);
-  if(bySource.deposit > 0) parts.push(`${fmt(bySource.deposit)} deposit`);
-  splitRow.innerHTML = parts.map(p => `<span>${p}</span>`).join('');
 
   // one history row per investment; amount is the integer actually invested, read from the investments table
   const investEntries = (investmentRows || []).map(r => ({type:'invest', date: r.invested_at, value: Number(r.amount), detail: r}));
