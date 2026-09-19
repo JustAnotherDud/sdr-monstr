@@ -345,9 +345,10 @@ function renderCycleProgress(start, end){
 }
 
 // current MNST price in EUR, cached in localStorage since it's an external
-// fetch that can fail or rate-limit. Fetched server-side (quote from Stooq,
-// no key needed, + FX conversion) by the "mnst-price" Supabase Edge Function,
-// which the browser can call cross-origin without issue.
+// fetch that can fail or rate-limit. Fetched server-side (Twelve Data quote
+// + Frankfurter FX conversion, key held in the function, never in the
+// client) by the "mnst-price" Supabase Edge Function, so the browser never
+// has to deal with a third-party API's CORS policy directly.
 const SHARE_PRICE_CACHE_KEY = 'sdr_share_price_cache';
 const SHARE_PRICE_CACHE_MS = 15 * 60 * 1000;
 
