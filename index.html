@@ -42,6 +42,10 @@
   .portfolio-stat{text-align:center;}
   .portfolio-value{font-family:'Martian Mono',monospace;font-weight:600;font-size:19px;color:var(--ink);font-variant-numeric:tabular-nums;letter-spacing:-0.2px;}
   .portfolio-label{font-size:10.5px;color:var(--ink-dim);margin-top:2px;}
+  .portfolio-gain{font-size:10px;margin-top:3px;font-family:'Martian Mono',monospace;font-variant-numeric:tabular-nums;}
+  .portfolio-gain.pos{color:var(--brass);}
+  .portfolio-gain.neg{color:var(--err);}
+  .portfolio-gain:empty{display:none;}
   .price-debug{margin-top:6px;text-align:center;font-family:'Martian Mono',monospace;font-size:9.5px;color:var(--err);word-break:break-word;}
   .price-debug:empty{display:none;}
 
@@ -178,6 +182,7 @@
     <div class="portfolio-stat">
       <div class="portfolio-value" id="sharePriceStat">—</div>
       <div class="portfolio-label">MNST price</div>
+      <div class="portfolio-gain" id="portfolioGain"></div>
     </div>
   </div>
   <div class="price-debug" id="sharePriceDebug"></div>
@@ -295,6 +300,7 @@ const investedTotal = document.getElementById('investedTotal');
 const sharesHeldStat = document.getElementById('sharesHeldStat');
 const sharePriceStat = document.getElementById('sharePriceStat');
 const sharePriceDebug = document.getElementById('sharePriceDebug');
+const portfolioGain = document.getElementById('portfolioGain');
 
 let pendingTotal = 0;
 let pendingInvestAmount = 0;
@@ -372,14 +378,24 @@ async function fetchSharePriceEUR(){
   return { eur: json.eur };
 }
 
-function renderSharePrice(){
+function renderSharePrice(investedSum, sharesHeld){
   fetchSharePriceEUR().then(result => {
     if(result.eur != null){
       sharePriceStat.textContent = fmt(result.eur);
       sharePriceDebug.textContent = '';
+      if(sharesHeld > 0 && investedSum > 0){
+        const gain = sharesHeld * result.eur - investedSum;
+        const pct = (gain / investedSum) * 100;
+        const sign = gain >= 0 ? '+' : '−';
+        portfolioGain.textContent = `${sign}${fmt(Math.abs(gain))} (${sign}${Math.abs(pct).toFixed(2)}%)`;
+        portfolioGain.className = 'portfolio-gain ' + (gain >= 0 ? 'pos' : 'neg');
+      } else {
+        portfolioGain.textContent = '';
+      }
     } else {
       sharePriceStat.textContent = '—';
       sharePriceDebug.textContent = result.error || '';
+      portfolioGain.textContent = '';
     }
   });
 }
@@ -412,7 +428,7 @@ async function loadAndRender(){
   totalAmount.textContent = fmt(total);
   investedTotal.textContent = fmt(investedSum);
   sharesHeldStat.textContent = sharesHeld > 0 ? fmtShares(sharesHeld) : '0';
-  renderSharePrice();
+  renderSharePrice(investedSum, sharesHeld);
 
   if(pendingInvestAmount < 1){
     investBtn.disabled = true;
