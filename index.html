@@ -41,13 +41,16 @@
   .portfolio{display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;margin-top:20px;padding-top:16px;border-top:1px solid var(--rule);}
   .portfolio-stat{text-align:center;}
   .portfolio-value{font-family:'Martian Mono',monospace;font-weight:600;font-size:19px;color:var(--ink);font-variant-numeric:tabular-nums;letter-spacing:-0.2px;}
+  .portfolio-value.pos{color:var(--brass);}
+  .portfolio-value.neg{color:var(--err);}
   .portfolio-label{font-size:10.5px;color:var(--ink-dim);margin-top:2px;}
-  .portfolio-sub{font-size:10px;margin-top:3px;color:var(--ink-dim);font-family:'Martian Mono',monospace;font-variant-numeric:tabular-nums;}
-  .portfolio-sub:empty{display:none;}
   .portfolio-gain{font-size:10px;margin-top:3px;font-family:'Martian Mono',monospace;font-variant-numeric:tabular-nums;}
   .portfolio-gain.pos{color:var(--brass);}
   .portfolio-gain.neg{color:var(--err);}
   .portfolio-gain:empty{display:none;}
+  .portfolio-secondary{margin-top:10px;padding-top:10px;border-top:1px dashed var(--rule);}
+  .portfolio-secondary .portfolio-value{font-size:14px;color:var(--ink-dim);}
+  .portfolio-secondary .portfolio-label{font-size:9.5px;}
   .price-debug{margin-top:6px;text-align:center;font-family:'Martian Mono',monospace;font-size:9.5px;color:var(--err);word-break:break-word;}
   .price-debug:empty{display:none;}
 
@@ -114,6 +117,9 @@
   .cut::before,.cut::after{content:'';flex:1;border-top:1px dashed var(--rule);}
   .entry-sub{font-family:'Martian Mono',monospace;font-size:10px;color:var(--ink-dim);padding:0 0 9px;font-variant-numeric:tabular-nums;}
   .empty{text-align:center;color:var(--ink-dim);font-size:12.5px;padding:20px 0;}
+  .log-day-label{font-size:10px;font-weight:600;letter-spacing:0.5px;text-transform:uppercase;color:var(--ink-dim);margin-bottom:8px;}
+  .show-more-btn{display:block;width:100%;margin-top:4px;padding:10px 0 2px;border:none;border-top:1px dashed var(--rule);background:none;color:var(--ink-dim);font-family:'Martian Mono',monospace;font-size:11px;cursor:pointer;text-align:center;}
+  .show-more-btn:hover,.show-more-btn:focus-visible{color:var(--cyan);}
 
   @keyframes tape-enter{from{opacity:0;transform:translateY(-6px);}to{opacity:1;transform:translateY(0);}}
   .enter{animation:tape-enter 180ms ease-out;}
@@ -179,14 +185,27 @@
       <div class="portfolio-label">invested</div>
     </div>
     <div class="portfolio-stat">
-      <div class="portfolio-value" id="sharesHeldStat">0</div>
-      <div class="portfolio-label">shares</div>
-      <div class="portfolio-sub" id="sharePriceStat"></div>
-    </div>
-    <div class="portfolio-stat">
       <div class="portfolio-value" id="portfolioValueStat">—</div>
       <div class="portfolio-label">now</div>
-      <div class="portfolio-gain" id="portfolioGain"></div>
+    </div>
+    <div class="portfolio-stat">
+      <div class="portfolio-value" id="portfolioGain">—</div>
+      <div class="portfolio-label">delta</div>
+      <div class="portfolio-gain" id="portfolioGainPct"></div>
+    </div>
+  </div>
+  <div class="portfolio portfolio-secondary">
+    <div class="portfolio-stat">
+      <div class="portfolio-value" id="sharesHeldStat">0</div>
+      <div class="portfolio-label">shares</div>
+    </div>
+    <div class="portfolio-stat">
+      <div class="portfolio-value" id="avgCostStat">—</div>
+      <div class="portfolio-label">avg cost</div>
+    </div>
+    <div class="portfolio-stat">
+      <div class="portfolio-value" id="sharePriceStat">—</div>
+      <div class="portfolio-label">price now</div>
     </div>
   </div>
   <div class="price-debug" id="sharePriceDebug"></div>
@@ -302,10 +321,12 @@ const statusLine = document.getElementById('statusLine');
 const weekRange = document.getElementById('weekRange');
 const investedTotal = document.getElementById('investedTotal');
 const sharesHeldStat = document.getElementById('sharesHeldStat');
+const avgCostStat = document.getElementById('avgCostStat');
 const sharePriceStat = document.getElementById('sharePriceStat');
 const portfolioValueStat = document.getElementById('portfolioValueStat');
 const sharePriceDebug = document.getElementById('sharePriceDebug');
 const portfolioGain = document.getElementById('portfolioGain');
+const portfolioGainPct = document.getElementById('portfolioGainPct');
 
 let pendingTotal = 0;
 let pendingInvestAmount = 0;
@@ -384,9 +405,11 @@ async function fetchSharePriceEUR(){
 }
 
 function renderSharePrice(investedSum, sharesHeld){
+  avgCostStat.textContent = sharesHeld > 0 ? fmt(investedSum / sharesHeld) : '—';
+
   fetchSharePriceEUR().then(result => {
     if(result.eur != null){
-      sharePriceStat.textContent = `@ ${fmt(result.eur)}`;
+      sharePriceStat.textContent = fmt(result.eur);
       sharePriceDebug.textContent = '';
       if(sharesHeld > 0){
         const value = sharesHeld * result.eur;
@@ -395,20 +418,29 @@ function renderSharePrice(investedSum, sharesHeld){
           const gain = value - investedSum;
           const pct = (gain / investedSum) * 100;
           const sign = gain >= 0 ? '+' : '−';
-          portfolioGain.textContent = `${sign}${fmt(Math.abs(gain))} (${sign}${Math.abs(pct).toFixed(2)}%)`;
-          portfolioGain.className = 'portfolio-gain ' + (gain >= 0 ? 'pos' : 'neg');
+          const cls = gain >= 0 ? 'pos' : 'neg';
+          portfolioGain.textContent = `${sign}${fmt(Math.abs(gain))}`;
+          portfolioGain.className = 'portfolio-value ' + cls;
+          portfolioGainPct.textContent = `${sign}${Math.abs(pct).toFixed(2)}%`;
+          portfolioGainPct.className = 'portfolio-gain ' + cls;
         } else {
-          portfolioGain.textContent = '';
+          portfolioGain.textContent = '—';
+          portfolioGain.className = 'portfolio-value';
+          portfolioGainPct.textContent = '';
         }
       } else {
         portfolioValueStat.textContent = '—';
-        portfolioGain.textContent = '';
+        portfolioGain.textContent = '—';
+        portfolioGain.className = 'portfolio-value';
+        portfolioGainPct.textContent = '';
       }
     } else {
-      sharePriceStat.textContent = '';
+      sharePriceStat.textContent = '—';
       portfolioValueStat.textContent = '—';
       sharePriceDebug.textContent = result.error || '';
-      portfolioGain.textContent = '';
+      portfolioGain.textContent = '—';
+      portfolioGain.className = 'portfolio-value';
+      portfolioGainPct.textContent = '';
     }
   });
 }
@@ -470,10 +502,13 @@ async function loadAndRender(){
     logEl.innerHTML = '<div class="empty">Nothing on the tape yet.</div>';
   } else {
     const labels = {profit:'profit', deposit:'deposit', no_profit:'deposit', carry:'carried over'};
-    logEl.innerHTML = items.map((it, idx) => {
+    const dayKey = d => `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+
+    const rendered = items.map((it, idx) => {
       const enterClass = (justAdded && idx === 0) ? ' enter' : '';
       const d = new Date(it.date);
       const dstr = d.toLocaleDateString('en-GB', {day:'2-digit', month:'2-digit'}) + ' ' + d.toLocaleTimeString('en-GB', {hour:'2-digit', minute:'2-digit'});
+      let html;
       if(it.type === 'invest'){
         const det = it.detail;
         let sub = '';
@@ -483,13 +518,40 @@ async function loadAndRender(){
           if(det.share_price != null) parts2.push(`@ ${fmt(Number(det.share_price))}`);
           sub = `<div class="entry-sub">${parts2.join(' ')}</div>`;
         }
-        return `<div class="entry-block${enterClass}"><div class="cut"><span>cut</span></div><div class="entry invest"><span>${dstr} · invested</span><span class="val">−${fmt(it.value)}</span></div>${sub}</div>`;
+        html = `<div class="entry-block${enterClass}"><div class="cut"><span>cut</span></div><div class="entry invest"><span>${dstr} · invested</span><span class="val">−${fmt(it.value)}</span></div>${sub}</div>`;
+      } else if(it.source === 'seed'){
+        html = `<div class="entry${enterClass}"><span>${dstr} · <span class="meta">opening balance</span></span><span class="right"><span class="val">+${fmt(it.value)}</span><button class="del-btn" type="button" data-id="${it.id}" title="delete">✕</button></span></div>`;
+      } else {
+        html = `<div class="entry${enterClass}"><span>${dstr} · ${it.qty}× <span class="meta">${labels[it.source] || it.source}</span></span><span class="right"><span class="val">+${fmt(it.value)}</span><button class="del-btn" type="button" data-id="${it.id}" title="delete">✕</button></span></div>`;
       }
-      if(it.source === 'seed'){
-        return `<div class="entry${enterClass}"><span>${dstr} · <span class="meta">opening balance</span></span><span class="right"><span class="val">+${fmt(it.value)}</span><button class="del-btn" type="button" data-id="${it.id}" title="delete">✕</button></span></div>`;
-      }
-      return `<div class="entry${enterClass}"><span>${dstr} · ${it.qty}× <span class="meta">${labels[it.source] || it.source}</span></span><span class="right"><span class="val">+${fmt(it.value)}</span><button class="del-btn" type="button" data-id="${it.id}" title="delete">✕</button></span></div>`;
-    }).join('');
+      return { day: dayKey(d), html };
+    });
+
+    // default view: only the most recent day that has entries; the rest sits behind "Show older"
+    const newestDay = rendered[0].day;
+    const recentHtml = rendered.filter(r => r.day === newestDay).map(r => r.html).join('');
+    const olderRows = rendered.filter(r => r.day !== newestDay);
+
+    const newestDate = new Date(items[0].date);
+    const today = new Date(); today.setHours(0,0,0,0);
+    const yesterday = addDays(today, -1);
+    const cmpDate = new Date(newestDate); cmpDate.setHours(0,0,0,0);
+    let dayLabel;
+    if(cmpDate.getTime() === today.getTime()) dayLabel = 'Today';
+    else if(cmpDate.getTime() === yesterday.getTime()) dayLabel = 'Yesterday';
+    else dayLabel = newestDate.toLocaleDateString('en-GB', {day:'2-digit', month:'2-digit', year:'numeric'});
+
+    const olderHtml = olderRows.length > 0
+      ? `<button class="show-more-btn" type="button" id="showOlderBtn">Show older (${olderRows.length})</button><div class="log-older hidden" id="logOlder">${olderRows.map(r => r.html).join('')}</div>`
+      : '';
+
+    logEl.innerHTML = `<div class="log-day-label">${dayLabel}</div>${recentHtml}${olderHtml}`;
+
+    document.getElementById('showOlderBtn')?.addEventListener('click', (e) => {
+      document.getElementById('logOlder').classList.remove('hidden');
+      e.target.classList.add('hidden');
+    });
+
     logEl.querySelectorAll('.del-btn').forEach(btn => {
       btn.onclick = async () => {
         if(!confirm('Delete this entry?')) return;
