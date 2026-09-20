@@ -520,9 +520,9 @@ function dayLabelFor(date){
 }
 
 // renders only the most recent day that has entries, with everything older behind "Show older"
-function renderDayGrouped(container, rows, showOlderIdPrefix){
+function renderDayGrouped(container, rows, showOlderIdPrefix, emptyMsg){
   if(rows.length === 0){
-    container.innerHTML = '<div class="empty">Nothing on the tape yet.</div>';
+    container.innerHTML = `<div class="empty">${emptyMsg}</div>`;
     return;
   }
   const newestDay = rows[0].day;
@@ -554,7 +554,7 @@ function renderBottleLog(pendingEntries){
     return { day: dayKey(d), date: d, html };
   });
 
-  renderDayGrouped(logEl, rows, 'log');
+  renderDayGrouped(logEl, rows, 'log', 'Nothing on the tape yet.');
 
   logEl.querySelectorAll('.del-btn').forEach(btn => {
     btn.onclick = async () => {
@@ -568,11 +568,7 @@ function renderBottleLog(pendingEntries){
 }
 
 function renderInvestLog(investEntries){
-  if(investEntries.length === 0){
-    investLogEl.innerHTML = '<div class="empty">No buys yet.</div>';
-    return;
-  }
-  investLogEl.innerHTML = investEntries.map(it => {
+  const rows = investEntries.map(it => {
     const d = new Date(it.date);
     const dstr = fmtDateTime(d);
     const det = it.detail;
@@ -583,8 +579,11 @@ function renderInvestLog(investEntries){
       if(det.share_price != null) parts.push(`@ ${fmt(Number(det.share_price))}`);
       sub = `<div class="entry-sub">${parts.join(' ')}</div>`;
     }
-    return `<div class="entry-block"><div class="entry invest"><span>${dstr} · invested</span><span class="val">−${fmt(it.value)}</span></div>${sub}</div>`;
-  }).join('');
+    const html = `<div class="entry-block"><div class="entry invest"><span>${dstr} · invested</span><span class="val">−${fmt(it.value)}</span></div>${sub}</div>`;
+    return { day: dayKey(d), date: d, html };
+  });
+
+  renderDayGrouped(investLogEl, rows, 'invest', 'No buys yet.');
 }
 
 addBtn.onclick = async () => {
