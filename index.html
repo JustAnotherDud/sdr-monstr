@@ -194,16 +194,16 @@
   </div>
   <div class="portfolio portfolio-secondary">
     <div class="portfolio-stat">
-      <div class="portfolio-value" id="sharesHeldStat">0</div>
-      <div class="portfolio-label">shares</div>
-    </div>
-    <div class="portfolio-stat">
       <div class="portfolio-value" id="avgCostStat">—</div>
       <div class="portfolio-label">avg cost</div>
     </div>
     <div class="portfolio-stat">
       <div class="portfolio-value" id="sharePriceStat">—</div>
       <div class="portfolio-label">price now</div>
+    </div>
+    <div class="portfolio-stat">
+      <div class="portfolio-value" id="sharesHeldStat">0</div>
+      <div class="portfolio-label">shares</div>
     </div>
   </div>
   <div class="price-debug" id="sharePriceDebug"></div>
@@ -229,7 +229,7 @@
     <div class="invest-form-row"><span>Investing</span><b id="investAmount">€0.00</b></div>
     <div class="carry-note" id="carryNote" style="display:none;"></div>
     <input class="invest-input" type="number" id="sharePriceInput" placeholder="Price per share (optional)" step="0.01" min="0" inputmode="decimal">
-    <input class="invest-input" type="number" id="sharesInput" placeholder="Shares bought (optional)" step="0.0001" min="0" inputmode="decimal">
+    <input class="invest-input" type="number" id="sharesInput" placeholder="Shares bought (optional)" step="0.000001" min="0" inputmode="decimal">
     <div class="invest-actions">
       <button class="invest-cancel" type="button" id="investCancel">Cancel</button>
       <button class="invest-confirm" type="button" id="investConfirm">Confirm</button>
@@ -338,7 +338,7 @@ let pendingRemainder = 0;
 const INVEST_BTN_DEFAULT = 'Mark as invested (Monster buy)';
 
 function fmt(n){ return '€' + n.toFixed(2); }
-function fmtShares(n){ return (Math.round(Number(n) * 10000) / 10000).toString(); }
+function fmtShares(n){ return (Math.round(Number(n) * 1000000) / 1000000).toString(); }
 function fmtDateTime(d){ return d.toLocaleDateString('en-GB', {day:'2-digit', month:'2-digit'}) + ' ' + d.toLocaleTimeString('en-GB', {hour:'2-digit', minute:'2-digit'}); }
 function setStatus(msg, isErr){ statusLine.textContent = msg; statusLine.className = 'status' + (isErr ? ' err' : ''); }
 
