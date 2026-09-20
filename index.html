@@ -473,7 +473,7 @@ async function loadAndRender(){
     logEl.innerHTML = items.map((it, idx) => {
       const enterClass = (justAdded && idx === 0) ? ' enter' : '';
       const d = new Date(it.date);
-      const dstr = d.toLocaleDateString('en-GB', {day:'2-digit', month:'2-digit'});
+      const dstr = d.toLocaleDateString('en-GB', {day:'2-digit', month:'2-digit'}) + ' ' + d.toLocaleTimeString('en-GB', {hour:'2-digit', minute:'2-digit'});
       if(it.type === 'invest'){
         const det = it.detail;
         let sub = '';
