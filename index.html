@@ -333,13 +333,13 @@ const sharePriceDebug = document.getElementById('sharePriceDebug');
 const portfolioGain = document.getElementById('portfolioGain');
 const portfolioGainPct = document.getElementById('portfolioGainPct');
 
-let pendingTotal = 0;
 let pendingInvestAmount = 0;
 let pendingRemainder = 0;
 const INVEST_BTN_DEFAULT = 'Mark as invested (Monster buy)';
 
 function fmt(n){ return '€' + n.toFixed(2); }
 function fmtShares(n){ return (Math.round(Number(n) * 10000) / 10000).toString(); }
+function fmtDateTime(d){ return d.toLocaleDateString('en-GB', {day:'2-digit', month:'2-digit'}) + ' ' + d.toLocaleTimeString('en-GB', {hour:'2-digit', minute:'2-digit'}); }
 function setStatus(msg, isErr){ statusLine.textContent = msg; statusLine.className = 'status' + (isErr ? ' err' : ''); }
 
 function addDays(d, n){ const r = new Date(d); r.setDate(r.getDate() + n); return r; }
@@ -472,7 +472,6 @@ async function loadAndRender(){
   const investedSum = (investmentRows || []).reduce((s,r) => s + Number(r.amount), 0);
   const sharesHeld = (investmentRows || []).reduce((s,r) => s + (r.shares != null ? Number(r.shares) : 0), 0);
 
-  pendingTotal = total;
   pendingInvestAmount = Math.floor(total);
   pendingRemainder = +(total - pendingInvestAmount).toFixed(2);
   totalAmount.textContent = fmt(total);
@@ -548,7 +547,7 @@ function renderBottleLog(pendingEntries){
   const rows = pendingEntries.map((it, idx) => {
     const enterClass = (justAdded && idx === 0) ? ' enter' : '';
     const d = new Date(it.date);
-    const dstr = d.toLocaleDateString('en-GB', {day:'2-digit', month:'2-digit'}) + ' ' + d.toLocaleTimeString('en-GB', {hour:'2-digit', minute:'2-digit'});
+    const dstr = fmtDateTime(d);
     const html = it.source === 'seed'
       ? `<div class="entry${enterClass}"><span>${dstr} · <span class="meta">opening balance</span></span><span class="right"><span class="val">+${fmt(it.value)}</span><button class="del-btn" type="button" data-id="${it.id}" title="delete">✕</button></span></div>`
       : `<div class="entry${enterClass}"><span>${dstr} · ${it.qty}× <span class="meta">${entryLabels[it.source] || it.source}</span></span><span class="right"><span class="val">+${fmt(it.value)}</span><button class="del-btn" type="button" data-id="${it.id}" title="delete">✕</button></span></div>`;
@@ -575,7 +574,7 @@ function renderInvestLog(investEntries){
   }
   investLogEl.innerHTML = investEntries.map(it => {
     const d = new Date(it.date);
-    const dstr = d.toLocaleDateString('en-GB', {day:'2-digit', month:'2-digit'}) + ' ' + d.toLocaleTimeString('en-GB', {hour:'2-digit', minute:'2-digit'});
+    const dstr = fmtDateTime(d);
     const det = it.detail;
     let sub = '';
     if(det && (det.shares != null || det.share_price != null)){
