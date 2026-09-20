@@ -32,7 +32,7 @@
   header{display:flex;align-items:baseline;justify-content:space-between;padding-bottom:12px;border-bottom:1px solid var(--rule);margin-bottom:24px;}
   .brand{font-weight:700;font-size:15px;letter-spacing:0.3px;color:var(--ink);}
   .brand .arrow{color:var(--cyan);}
-  .week{font-family:'Martian Mono',monospace;font-size:11px;color:var(--ink-dim);font-variant-numeric:tabular-nums;}
+  .week{font-family:'Martian Mono',monospace;font-size:10px;color:var(--ink-dim);font-variant-numeric:tabular-nums;}
 
   .total{text-align:center;}
   .total .amount{font-family:'Martian Mono',monospace;font-weight:600;font-size:44px;color:var(--ink);font-variant-numeric:tabular-nums;letter-spacing:-0.5px;}
@@ -42,6 +42,8 @@
   .portfolio-stat{text-align:center;}
   .portfolio-value{font-family:'Martian Mono',monospace;font-weight:600;font-size:19px;color:var(--ink);font-variant-numeric:tabular-nums;letter-spacing:-0.2px;}
   .portfolio-label{font-size:10.5px;color:var(--ink-dim);margin-top:2px;}
+  .portfolio-sub{font-size:10px;margin-top:3px;color:var(--ink-dim);font-family:'Martian Mono',monospace;font-variant-numeric:tabular-nums;}
+  .portfolio-sub:empty{display:none;}
   .portfolio-gain{font-size:10px;margin-top:3px;font-family:'Martian Mono',monospace;font-variant-numeric:tabular-nums;}
   .portfolio-gain.pos{color:var(--brass);}
   .portfolio-gain.neg{color:var(--err);}
@@ -53,7 +55,8 @@
   .cycle-track{height:3px;border-radius:2px;background:var(--rule);overflow:hidden;}
   .cycle-fill{height:100%;background:var(--cyan);border-radius:2px;transition:width .4s ease;}
   .cycle-fill.due{background:var(--brass);}
-  .cycle-days{margin-top:4px;text-align:right;font-family:'Martian Mono',monospace;font-size:10px;color:var(--ink-dim);font-variant-numeric:tabular-nums;}
+  .cycle-meta{display:flex;justify-content:space-between;align-items:baseline;margin-top:4px;}
+  .cycle-days{font-family:'Martian Mono',monospace;font-size:10px;color:var(--ink-dim);font-variant-numeric:tabular-nums;}
 
   .card{margin-top:24px;background:var(--tape);border:1px solid var(--rule);border-radius:10px;padding:16px;}
   .card h3{margin:0 0 12px;font-size:12px;color:var(--ink-dim);font-weight:600;}
@@ -154,15 +157,15 @@
 <div class="app hidden" id="app">
   <header>
     <div class="brand">SDR <span class="arrow">→</span> MNST</div>
-    <div style="display:flex;align-items:baseline;gap:10px;">
-      <span class="week" id="weekRange"></span>
-      <button class="conn-btn" type="button" id="connBtn" title="Change connection">conn</button>
-    </div>
+    <button class="conn-btn" type="button" id="connBtn" title="Change connection">conn</button>
   </header>
 
   <div class="cycle-progress">
     <div class="cycle-track"><div class="cycle-fill" id="cycleFill"></div></div>
-    <div class="cycle-days" id="cycleDays"></div>
+    <div class="cycle-meta">
+      <span class="week" id="weekRange"></span>
+      <span class="cycle-days" id="cycleDays"></span>
+    </div>
   </div>
 
   <div class="total">
@@ -178,10 +181,11 @@
     <div class="portfolio-stat">
       <div class="portfolio-value" id="sharesHeldStat">0</div>
       <div class="portfolio-label">shares</div>
+      <div class="portfolio-sub" id="sharePriceStat"></div>
     </div>
     <div class="portfolio-stat">
-      <div class="portfolio-value" id="sharePriceStat">—</div>
-      <div class="portfolio-label">MNST price</div>
+      <div class="portfolio-value" id="portfolioValueStat">—</div>
+      <div class="portfolio-label">now</div>
       <div class="portfolio-gain" id="portfolioGain"></div>
     </div>
   </div>
@@ -299,6 +303,7 @@ const weekRange = document.getElementById('weekRange');
 const investedTotal = document.getElementById('investedTotal');
 const sharesHeldStat = document.getElementById('sharesHeldStat');
 const sharePriceStat = document.getElementById('sharePriceStat');
+const portfolioValueStat = document.getElementById('portfolioValueStat');
 const sharePriceDebug = document.getElementById('sharePriceDebug');
 const portfolioGain = document.getElementById('portfolioGain');
 
@@ -337,7 +342,7 @@ function getPeriodBounds(investmentRows){
 
 function renderPeriodRange(start, end){
   const f = d => d.toLocaleDateString('en-GB', {day:'2-digit', month:'2-digit'});
-  weekRange.textContent = `cycle ${f(start)} – ${f(end)}`;
+  weekRange.textContent = `${f(start)} – ${f(end)}`;
 }
 
 // visual countdown to the end of the current cycle
@@ -381,19 +386,27 @@ async function fetchSharePriceEUR(){
 function renderSharePrice(investedSum, sharesHeld){
   fetchSharePriceEUR().then(result => {
     if(result.eur != null){
-      sharePriceStat.textContent = fmt(result.eur);
+      sharePriceStat.textContent = `@ ${fmt(result.eur)}`;
       sharePriceDebug.textContent = '';
-      if(sharesHeld > 0 && investedSum > 0){
-        const gain = sharesHeld * result.eur - investedSum;
-        const pct = (gain / investedSum) * 100;
-        const sign = gain >= 0 ? '+' : '−';
-        portfolioGain.textContent = `${sign}${fmt(Math.abs(gain))} (${sign}${Math.abs(pct).toFixed(2)}%)`;
-        portfolioGain.className = 'portfolio-gain ' + (gain >= 0 ? 'pos' : 'neg');
+      if(sharesHeld > 0){
+        const value = sharesHeld * result.eur;
+        portfolioValueStat.textContent = fmt(value);
+        if(investedSum > 0){
+          const gain = value - investedSum;
+          const pct = (gain / investedSum) * 100;
+          const sign = gain >= 0 ? '+' : '−';
+          portfolioGain.textContent = `${sign}${fmt(Math.abs(gain))} (${sign}${Math.abs(pct).toFixed(2)}%)`;
+          portfolioGain.className = 'portfolio-gain ' + (gain >= 0 ? 'pos' : 'neg');
+        } else {
+          portfolioGain.textContent = '';
+        }
       } else {
+        portfolioValueStat.textContent = '—';
         portfolioGain.textContent = '';
       }
     } else {
-      sharePriceStat.textContent = '—';
+      sharePriceStat.textContent = '';
+      portfolioValueStat.textContent = '—';
       sharePriceDebug.textContent = result.error || '';
       portfolioGain.textContent = '';
     }
