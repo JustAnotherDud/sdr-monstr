@@ -5,8 +5,8 @@ A one-screen PWA for turning deposit-return bottles into Monster Beverage
 
 In Portugal a returned bottle is worth €0.10. This logs each batch of bottles,
 stacks the cash, and — once there's at least a whole euro — records it as a
-stock buy. Weekly target is shown on a ruler (€10/week). Single user, one
-Supabase project behind it, no build step.
+stock buy. A progress bar tracks a 14-day cycle, anchored to the date of the
+last investment. Single user, one Supabase project behind it, no build step.
 
 ## Why whole euros (the one real design decision)
 
@@ -18,28 +18,27 @@ as a row with `source: 'carry'` and that exact value.
 
 That carry row:
 
-- **seeds next week's pot** — it's already counted in the running total on the
-  next load;
-- **does not count as a bottle** — the "N bottles" counter and the weekly
-  ruler both exclude `source` `carry` (and `seed`), so a €0.40 carry-over
-  never looks like 4 bottles collected or inflates the week's progress.
+- **seeds next cycle's pot** — it's already counted in the running total on
+  the next load;
+- **is tagged `source: 'carry'`**, not `profit`/`deposit`, so it still shows
+  on the bottle log but is clearly not an actual batch of bottles (see
+  Sources).
 
 So the running total is always honest about fractional amounts, and every
 euro that goes in is a euro you could actually have invested.
 
 ## Sources
 
-Each batch is tagged, and the split line separates them:
+Each batch is tagged with one of two sources, picked with the buttons in
+"Add bottles":
 
-| Source | Shown as | Meaning |
-|---|---|---|
-| `found` | profit | picked up from the street / a bin |
-| `scam` | scam | machine trickery (over-counted a return) |
-| `own_deposit` | reclaimed | returning bottles that were already yours |
-| `others` | others | recycled on someone else's behalf |
+| Source | Meaning |
+|---|---|
+| `profit` | found on the street / a bin, or machine trickery (over-counted a return) |
+| `deposit` | reclaiming bottles that were already yours, or on someone else's behalf |
 
 `seed` (opening balance) and `carry` (see above) are internal — they show on
-the history tape but never in the bottle count or the ruler.
+the bottle log, tagged separately from an actual batch of bottles.
 
 ## Data model (Supabase)
 
