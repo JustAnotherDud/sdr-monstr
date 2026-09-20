@@ -113,8 +113,6 @@
   .entry .right{display:flex;align-items:center;gap:8px;justify-content:flex-end;}
   .del-btn{background:none;border:none;color:var(--ink-dim);font-size:13px;line-height:1;cursor:pointer;padding:2px 4px;font-family:'Martian Mono',monospace;}
   .del-btn:hover,.del-btn:focus-visible{color:var(--err);}
-  .cut{display:flex;align-items:center;gap:10px;margin:12px 0 0;color:var(--ink-dim);font-family:'Martian Mono',monospace;font-size:10px;letter-spacing:2px;}
-  .cut::before,.cut::after{content:'';flex:1;border-top:1px dashed var(--rule);}
   .entry-sub{font-family:'Martian Mono',monospace;font-size:10px;color:var(--ink-dim);padding:0 0 9px;font-variant-numeric:tabular-nums;}
   .empty{text-align:center;color:var(--ink-dim);font-size:12.5px;padding:20px 0;}
   .log-day-label{font-size:10px;font-weight:600;letter-spacing:0.5px;text-transform:uppercase;color:var(--ink-dim);margin-bottom:8px;}
@@ -239,8 +237,14 @@
   </div>
 
   <details class="tape">
-    <summary>History</summary>
+    <summary>Bottle log</summary>
     <div id="log"><div class="empty">loading…</div></div>
+    <div class="tape-tear" aria-hidden="true"></div>
+  </details>
+
+  <details class="tape">
+    <summary>Stock buys</summary>
+    <div id="investLog"><div class="empty">loading…</div></div>
     <div class="tape-tear" aria-hidden="true"></div>
   </details>
 
@@ -308,6 +312,7 @@ const totalAmount = document.getElementById('totalAmount');
 const cycleFill = document.getElementById('cycleFill');
 const cycleDays = document.getElementById('cycleDays');
 const logEl = document.getElementById('log');
+const investLogEl = document.getElementById('investLog');
 const investBtn = document.getElementById('investBtn');
 const investForm = document.getElementById('investForm');
 const investAmount = document.getElementById('investAmount');
@@ -491,79 +496,96 @@ async function loadAndRender(){
   renderCycleProgress(start, end);
 
   // one history row per investment; amount is the integer actually invested, read from the investments table
-  const investEntries = (investmentRows || []).map(r => ({type:'invest', date: r.invested_at, value: Number(r.amount), detail: r}));
-  const pendingEntries = (pending || []).map(e => ({type:'entry', id: e.id, date: e.created_at, qty: e.qty, source: e.source, value: Number(e.value)}));
+  const investEntries = (investmentRows || []).map(r => ({type:'invest', date: r.invested_at, value: Number(r.amount), detail: r}))
+    .sort((a,b) => new Date(b.date) - new Date(a.date));
+  const pendingEntries = (pending || []).slice(0,50).map(e => ({type:'entry', id: e.id, date: e.created_at, qty: e.qty, source: e.source, value: Number(e.value)}))
+    .sort((a,b) => new Date(b.date) - new Date(a.date));
 
-  // cuts (investEntries) are never truncated: they're rare and the most important record.
-  // only the pending entries get capped, then the two are merged and re-sorted.
-  const items = [...pendingEntries.slice(0,50), ...investEntries].sort((a,b) => new Date(b.date) - new Date(a.date));
+  renderBottleLog(pendingEntries);
+  renderInvestLog(investEntries);
 
-  if(items.length === 0){
-    logEl.innerHTML = '<div class="empty">Nothing on the tape yet.</div>';
-  } else {
-    const labels = {profit:'profit', deposit:'deposit', no_profit:'deposit', carry:'carried over'};
-    const dayKey = d => `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
-
-    const rendered = items.map((it, idx) => {
-      const enterClass = (justAdded && idx === 0) ? ' enter' : '';
-      const d = new Date(it.date);
-      const dstr = d.toLocaleDateString('en-GB', {day:'2-digit', month:'2-digit'}) + ' ' + d.toLocaleTimeString('en-GB', {hour:'2-digit', minute:'2-digit'});
-      let html;
-      if(it.type === 'invest'){
-        const det = it.detail;
-        let sub = '';
-        if(det && (det.shares != null || det.share_price != null)){
-          const parts2 = [];
-          if(det.shares != null) parts2.push(`${fmtShares(det.shares)} shares`);
-          if(det.share_price != null) parts2.push(`@ ${fmt(Number(det.share_price))}`);
-          sub = `<div class="entry-sub">${parts2.join(' ')}</div>`;
-        }
-        html = `<div class="entry-block${enterClass}"><div class="cut"><span>cut</span></div><div class="entry invest"><span>${dstr} · invested</span><span class="val">−${fmt(it.value)}</span></div>${sub}</div>`;
-      } else if(it.source === 'seed'){
-        html = `<div class="entry${enterClass}"><span>${dstr} · <span class="meta">opening balance</span></span><span class="right"><span class="val">+${fmt(it.value)}</span><button class="del-btn" type="button" data-id="${it.id}" title="delete">✕</button></span></div>`;
-      } else {
-        html = `<div class="entry${enterClass}"><span>${dstr} · ${it.qty}× <span class="meta">${labels[it.source] || it.source}</span></span><span class="right"><span class="val">+${fmt(it.value)}</span><button class="del-btn" type="button" data-id="${it.id}" title="delete">✕</button></span></div>`;
-      }
-      return { day: dayKey(d), html };
-    });
-
-    // default view: only the most recent day that has entries; the rest sits behind "Show older"
-    const newestDay = rendered[0].day;
-    const recentHtml = rendered.filter(r => r.day === newestDay).map(r => r.html).join('');
-    const olderRows = rendered.filter(r => r.day !== newestDay);
-
-    const newestDate = new Date(items[0].date);
-    const today = new Date(); today.setHours(0,0,0,0);
-    const yesterday = addDays(today, -1);
-    const cmpDate = new Date(newestDate); cmpDate.setHours(0,0,0,0);
-    let dayLabel;
-    if(cmpDate.getTime() === today.getTime()) dayLabel = 'Today';
-    else if(cmpDate.getTime() === yesterday.getTime()) dayLabel = 'Yesterday';
-    else dayLabel = newestDate.toLocaleDateString('en-GB', {day:'2-digit', month:'2-digit', year:'numeric'});
-
-    const olderHtml = olderRows.length > 0
-      ? `<button class="show-more-btn" type="button" id="showOlderBtn">Show older (${olderRows.length})</button><div class="log-older hidden" id="logOlder">${olderRows.map(r => r.html).join('')}</div>`
-      : '';
-
-    logEl.innerHTML = `<div class="log-day-label">${dayLabel}</div>${recentHtml}${olderHtml}`;
-
-    document.getElementById('showOlderBtn')?.addEventListener('click', (e) => {
-      document.getElementById('logOlder').classList.remove('hidden');
-      e.target.classList.add('hidden');
-    });
-
-    logEl.querySelectorAll('.del-btn').forEach(btn => {
-      btn.onclick = async () => {
-        if(!confirm('Delete this entry?')) return;
-        btn.disabled = true;
-        const { error } = await supabase.from('bottle_log').delete().eq('id', btn.dataset.id);
-        if(error){ setStatus('delete failed: ' + error.message, true); return; }
-        await loadAndRender();
-      };
-    });
-  }
   justAdded = false;
   setStatus('synced');
+}
+
+const dayKey = d => `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+const entryLabels = {profit:'profit', deposit:'deposit', no_profit:'deposit', carry:'carried over'};
+
+function dayLabelFor(date){
+  const today = new Date(); today.setHours(0,0,0,0);
+  const yesterday = addDays(today, -1);
+  const cmpDate = new Date(date); cmpDate.setHours(0,0,0,0);
+  if(cmpDate.getTime() === today.getTime()) return 'Today';
+  if(cmpDate.getTime() === yesterday.getTime()) return 'Yesterday';
+  return date.toLocaleDateString('en-GB', {day:'2-digit', month:'2-digit', year:'numeric'});
+}
+
+// renders only the most recent day that has entries, with everything older behind "Show older"
+function renderDayGrouped(container, rows, showOlderIdPrefix){
+  if(rows.length === 0){
+    container.innerHTML = '<div class="empty">Nothing on the tape yet.</div>';
+    return;
+  }
+  const newestDay = rows[0].day;
+  const recentHtml = rows.filter(r => r.day === newestDay).map(r => r.html).join('');
+  const olderRows = rows.filter(r => r.day !== newestDay);
+  const olderBtnId = `${showOlderIdPrefix}OlderBtn`;
+  const olderBoxId = `${showOlderIdPrefix}Older`;
+
+  const olderHtml = olderRows.length > 0
+    ? `<button class="show-more-btn" type="button" id="${olderBtnId}">Show older (${olderRows.length})</button><div class="log-older hidden" id="${olderBoxId}">${olderRows.map(r => r.html).join('')}</div>`
+    : '';
+
+  container.innerHTML = `<div class="log-day-label">${dayLabelFor(rows[0].date)}</div>${recentHtml}${olderHtml}`;
+
+  document.getElementById(olderBtnId)?.addEventListener('click', (e) => {
+    document.getElementById(olderBoxId).classList.remove('hidden');
+    e.target.classList.add('hidden');
+  });
+}
+
+function renderBottleLog(pendingEntries){
+  const rows = pendingEntries.map((it, idx) => {
+    const enterClass = (justAdded && idx === 0) ? ' enter' : '';
+    const d = new Date(it.date);
+    const dstr = d.toLocaleDateString('en-GB', {day:'2-digit', month:'2-digit'}) + ' ' + d.toLocaleTimeString('en-GB', {hour:'2-digit', minute:'2-digit'});
+    const html = it.source === 'seed'
+      ? `<div class="entry${enterClass}"><span>${dstr} · <span class="meta">opening balance</span></span><span class="right"><span class="val">+${fmt(it.value)}</span><button class="del-btn" type="button" data-id="${it.id}" title="delete">✕</button></span></div>`
+      : `<div class="entry${enterClass}"><span>${dstr} · ${it.qty}× <span class="meta">${entryLabels[it.source] || it.source}</span></span><span class="right"><span class="val">+${fmt(it.value)}</span><button class="del-btn" type="button" data-id="${it.id}" title="delete">✕</button></span></div>`;
+    return { day: dayKey(d), date: d, html };
+  });
+
+  renderDayGrouped(logEl, rows, 'log');
+
+  logEl.querySelectorAll('.del-btn').forEach(btn => {
+    btn.onclick = async () => {
+      if(!confirm('Delete this entry?')) return;
+      btn.disabled = true;
+      const { error } = await supabase.from('bottle_log').delete().eq('id', btn.dataset.id);
+      if(error){ setStatus('delete failed: ' + error.message, true); return; }
+      await loadAndRender();
+    };
+  });
+}
+
+function renderInvestLog(investEntries){
+  if(investEntries.length === 0){
+    investLogEl.innerHTML = '<div class="empty">No buys yet.</div>';
+    return;
+  }
+  investLogEl.innerHTML = investEntries.map(it => {
+    const d = new Date(it.date);
+    const dstr = d.toLocaleDateString('en-GB', {day:'2-digit', month:'2-digit'}) + ' ' + d.toLocaleTimeString('en-GB', {hour:'2-digit', minute:'2-digit'});
+    const det = it.detail;
+    let sub = '';
+    if(det && (det.shares != null || det.share_price != null)){
+      const parts = [];
+      if(det.shares != null) parts.push(`${fmtShares(det.shares)} shares`);
+      if(det.share_price != null) parts.push(`@ ${fmt(Number(det.share_price))}`);
+      sub = `<div class="entry-sub">${parts.join(' ')}</div>`;
+    }
+    return `<div class="entry-block"><div class="entry invest"><span>${dstr} · invested</span><span class="val">−${fmt(it.value)}</span></div>${sub}</div>`;
+  }).join('');
 }
 
 addBtn.onclick = async () => {
