@@ -93,12 +93,7 @@
   .invest-confirm{border:1px solid var(--brass);background:var(--brass);color:var(--bg);}
 
   .tape{background:var(--tape);border-radius:8px 8px 0 0;padding:16px 16px 0;margin-top:24px;}
-  .tape summary{margin:0 0 12px;font-size:12px;color:var(--ink-dim);font-weight:600;cursor:pointer;list-style:none;display:flex;align-items:center;justify-content:space-between;}
-  .tape summary::-webkit-details-marker{display:none;}
-  .tape summary::after{content:'▾';font-size:10px;transition:transform .2s ease;}
-  .tape[open] summary::after{transform:rotate(180deg);}
-  .tape:not([open]){padding-bottom:16px;}
-  .tape:not([open]) .tape-tear{display:none;}
+  .tape-title{margin:0 0 12px;font-size:12px;color:var(--ink-dim);font-weight:600;}
   .tape-tear{height:12px;margin:0 -16px;background-image:
       linear-gradient(45deg, transparent 33.333%, var(--bg) 33.333%, var(--bg) 66.667%, transparent 66.667%),
       linear-gradient(-45deg, transparent 33.333%, var(--bg) 33.333%, var(--bg) 66.667%, transparent 66.667%);
@@ -115,6 +110,9 @@
   .del-btn:hover,.del-btn:focus-visible{color:var(--err);}
   .entry-sub{font-family:'Martian Mono',monospace;font-size:10px;color:var(--ink-dim);padding:0 0 9px;font-variant-numeric:tabular-nums;}
   .empty{text-align:center;color:var(--ink-dim);font-size:12.5px;padding:20px 0;}
+  /* the first group inside the "older" box has no sibling above it, but it
+     still needs the same air as every other day boundary */
+  .log-day + .log-day,.log-older > .log-day:first-child{margin-top:18px;}
   .log-day-label{font-size:10px;font-weight:600;letter-spacing:0.5px;text-transform:uppercase;color:var(--ink-dim);margin-bottom:8px;}
   .show-more-btn{display:block;width:100%;margin-top:4px;padding:10px 0 2px;border:none;border-top:1px dashed var(--rule);background:none;color:var(--ink-dim);font-family:'Martian Mono',monospace;font-size:11px;cursor:pointer;text-align:center;}
   .show-more-btn:hover,.show-more-btn:focus-visible{color:var(--cyan);}
@@ -236,17 +234,17 @@
     </div>
   </div>
 
-  <details class="tape" open>
-    <summary>Bottle log</summary>
+  <section class="tape">
+    <h2 class="tape-title">Bottle log</h2>
     <div id="log"><div class="empty">loading…</div></div>
     <div class="tape-tear" aria-hidden="true"></div>
-  </details>
+  </section>
 
-  <details class="tape" open>
-    <summary>Stock buys</summary>
+  <section class="tape">
+    <h2 class="tape-title">Stock buys</h2>
     <div id="investLog"><div class="empty">loading…</div></div>
     <div class="tape-tear" aria-hidden="true"></div>
-  </details>
+  </section>
 
   <div class="status" id="statusLine"></div>
 </div>
@@ -339,7 +337,7 @@ const INVEST_BTN_DEFAULT = 'Mark as invested (Monster buy)';
 
 function fmt(n){ return '€' + n.toFixed(2); }
 function fmtShares(n){ return (Math.round(Number(n) * 1000000) / 1000000).toString(); }
-function fmtDateTime(d){ return d.toLocaleDateString('en-GB', {day:'2-digit', month:'2-digit'}) + ' ' + d.toLocaleTimeString('en-GB', {hour:'2-digit', minute:'2-digit'}); }
+function fmtTime(d){ return d.toLocaleTimeString('en-GB', {hour:'2-digit', minute:'2-digit'}); }
 function setStatus(msg, isErr){ statusLine.textContent = msg; statusLine.className = 'status' + (isErr ? ' err' : ''); }
 
 function addDays(d, n){ const r = new Date(d); r.setDate(r.getDate() + n); return r; }
@@ -518,10 +516,24 @@ function dayLabelFor(date){
   const today = new Date(); today.setHours(0,0,0,0);
   const yesterday = addDays(today, -1);
   const cmpDate = new Date(date); cmpDate.setHours(0,0,0,0);
-  if(cmpDate.getTime() === today.getTime()) return 'Today';
-  if(cmpDate.getTime() === yesterday.getTime()) return 'Yesterday';
-  return date.toLocaleDateString('en-GB', {day:'2-digit', month:'2-digit', year:'numeric'});
+  const dstr = date.toLocaleDateString('en-GB', {day:'2-digit', month:'2-digit', year:'numeric'});
+  if(cmpDate.getTime() === today.getTime()) return `Today · ${dstr}`;
+  if(cmpDate.getTime() === yesterday.getTime()) return `Yesterday · ${dstr}`;
+  return dstr;
 }
+
+// rows arrive newest first, so equal days are already adjacent
+function groupByDay(rows){
+  const groups = [];
+  for(const r of rows){
+    const open = groups[groups.length - 1];
+    if(open && open.day === r.day) open.rows.push(r);
+    else groups.push({ day: r.day, date: r.date, rows: [r] });
+  }
+  return groups;
+}
+
+const dayBlock = g => `<div class="log-day"><div class="log-day-label">${dayLabelFor(g.date)}</div>${g.rows.map(r => r.html).join('')}</div>`;
 
 // renders only the most recent day that has entries, with everything older behind "Show older"
 function renderDayGrouped(container, rows, showOlderIdPrefix, emptyMsg){
@@ -529,21 +541,22 @@ function renderDayGrouped(container, rows, showOlderIdPrefix, emptyMsg){
     container.innerHTML = `<div class="empty">${emptyMsg}</div>`;
     return;
   }
-  const newestDay = rows[0].day;
-  const recentHtml = rows.filter(r => r.day === newestDay).map(r => r.html).join('');
-  const olderRows = rows.filter(r => r.day !== newestDay);
+  const [newest, ...older] = groupByDay(rows);
+  const olderCount = older.reduce((n, g) => n + g.rows.length, 0);
   const olderBtnId = `${showOlderIdPrefix}OlderBtn`;
   const olderBoxId = `${showOlderIdPrefix}Older`;
 
-  const olderHtml = olderRows.length > 0
-    ? `<button class="show-more-btn" type="button" id="${olderBtnId}">Show older (${olderRows.length})</button><div class="log-older hidden" id="${olderBoxId}">${olderRows.map(r => r.html).join('')}</div>`
+  const olderHtml = olderCount > 0
+    ? `<div class="log-older hidden" id="${olderBoxId}">${older.map(dayBlock).join('')}</div><button class="show-more-btn" type="button" id="${olderBtnId}">Show older (${olderCount})</button>`
     : '';
 
-  container.innerHTML = `<div class="log-day-label">${dayLabelFor(rows[0].date)}</div>${recentHtml}${olderHtml}`;
+  container.innerHTML = dayBlock(newest) + olderHtml;
 
-  document.getElementById(olderBtnId)?.addEventListener('click', (e) => {
-    document.getElementById(olderBoxId).classList.remove('hidden');
-    e.target.classList.add('hidden');
+  const olderBtn = document.getElementById(olderBtnId);
+  const olderBox = document.getElementById(olderBoxId);
+  olderBtn?.addEventListener('click', () => {
+    const shown = !olderBox.classList.toggle('hidden');
+    olderBtn.textContent = shown ? 'Show less' : `Show older (${olderCount})`;
   });
 }
 
@@ -551,7 +564,7 @@ function renderBottleLog(pendingEntries){
   const rows = pendingEntries.map((it, idx) => {
     const enterClass = (justAdded && idx === 0) ? ' enter' : '';
     const d = new Date(it.date);
-    const dstr = fmtDateTime(d);
+    const dstr = fmtTime(d);
     const html = it.source === 'seed'
       ? `<div class="entry${enterClass}"><span>${dstr} · <span class="meta">opening balance</span></span><span class="right"><span class="val">+${fmt(it.value)}</span><button class="del-btn" type="button" data-id="${it.id}" title="delete">✕</button></span></div>`
       : `<div class="entry${enterClass}"><span>${dstr} · ${it.qty}× <span class="meta">${entryLabels[it.source] || it.source}</span></span><span class="right"><span class="val">+${fmt(it.value)}</span><button class="del-btn" type="button" data-id="${it.id}" title="delete">✕</button></span></div>`;
@@ -574,7 +587,7 @@ function renderBottleLog(pendingEntries){
 function renderInvestLog(investEntries){
   const rows = investEntries.map(it => {
     const d = new Date(it.date);
-    const dstr = fmtDateTime(d);
+    const dstr = fmtTime(d);
     const det = it.detail;
     let sub = '';
     if(det && (det.shares != null || det.share_price != null)){
