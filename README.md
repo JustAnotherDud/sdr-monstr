@@ -66,26 +66,37 @@ clear the saved connection.
 ## The price it shows you
 
 The "price now" stat has to agree with what the broker screen says, or the
-gain/loss below it is theatre. Trade Republic quotes Monster on LS Exchange,
-in EUR, 07:30–23:00 CET. A NASDAQ price in USD converted at spot does *not*
-agree with that: NASDAQ only trades 15:30–22:00 CET, so all European morning
-the converted number is stuck on yesterday's close while the broker moves.
+gain/loss below it is theatre. Trade Republic routes to LS Exchange and shows
+its quote, in EUR, 07:30–23:00 CET. A NASDAQ price in USD converted at spot
+does *not* agree with that: NASDAQ only trades 15:30–22:00 CET, so all
+European morning the converted number is stuck on yesterday's close while the
+broker moves.
 
-So `supabase/functions/mnst-price/index.ts` asks Tradegate instead — a German
-market-maker venue on the same hours as LS, already in EUR — and returns its
-**bid**, which is what a holding is worth to you and what TR values yours at.
-Checked against a live TR screen on 2026-09-22, NASDAQ shut: TR said 38.260
-and the function returned 38.26. The same moment, the mid was 38.398 and the
-old NASDAQ-close-times-FX number was 38.375 — both off by an order of
-magnitude more than the bid.
+So `supabase/functions/mnst-price/index.ts` reads LS itself. Two things about
+which number to take:
 
-Behind it sit two fallbacks, tried in order: Stuttgart (also EUR, also German
-hours) and then NASDAQ in USD converted at spot. The app names whichever one
-it landed on, in red, under the price — the fallbacks are worse by
-construction and you should be able to see when you are looking at one.
+- **The mid, not the bid.** Watch a TR screen for ten seconds and the price
+  flickers across the spread. LS publishes the midpoint of its own book as
+  *the* price — its charts fetch `quotetype=mid` — and that is the centre of
+  the flicker.
+- **The last one-minute bar.** LS pushes live ticks over a websocket an edge
+  function cannot hold open, so we take the intraday series instead. A minute
+  stale at worst, against a screen nobody reads to the second.
 
-All three sources are keyless. The function holds no API key and needs no
+Behind it sit three fallbacks, tried in order: Tradegate's mid (same kind of
+venue, same hours, different market maker), Stuttgart, and finally NASDAQ in
+USD converted at spot. The app names whichever one it landed on, in red, under
+the price — the fallbacks are worse by construction and you should be able to
+see when you are looking at one.
+
+All four sources are keyless. The function holds no API key and needs no
 Supabase secret, which is one less thing to leak out of a public repo.
+
+### Known debt: it never refreshes itself
+
+There is no timer. The price is fetched when `loadAndRender()` runs — on load,
+and after adding, deleting or investing — behind a two-minute cache. A tab
+left open shows the same number forever.
 
 ## Stack
 

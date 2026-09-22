@@ -13,25 +13,48 @@ function jsonResponse(body: unknown, status = 200) {
   });
 }
 
-// Monster Beverage. Tradegate quotes it in EUR on a German market-maker venue
-// that trades 08:00-22:00 CET, same shape as the LS Exchange book Trade
-// Republic shows you. A NASDAQ print in USD is frozen outside 15:30-22:00
-// CET - that gap, not the FX, is what makes the number drift away from TR
-// during a European morning.
+// Monster Beverage. Trade Republic routes to LS Exchange and shows its quote,
+// so LS is the source to beat - and the number LS itself publishes is the
+// midpoint of its own book, which is why its charts ask for quotetype=mid.
+// Watch a TR screen for ten seconds and you see it flicker across the spread;
+// the mid is the centre of that flicker.
 const ISIN = "US61174X1090";
+const LS_INSTRUMENT = 92064;
+const LS_URL = `https://www.ls-tc.de/_rpc/json/instrument/chart/dataForInstrument`
+  + `?container=c&instrumentId=${LS_INSTRUMENT}&marketId=1&quotetype=mid&series=intraday&localeId=2`;
 const TRADEGATE_URL = `https://www.tradegatebsx.com/refresh.php?isin=${ISIN}`;
+const YAHOO = "https://query1.finance.yahoo.com/v8/finance/chart";
 
 // Every source here is keyless on purpose: nothing to store, nothing to leak,
 // nothing to rotate.
-const YAHOO = "https://query1.finance.yahoo.com/v8/finance/chart";
+const UA = { "User-Agent": "sdr-monstr/1.0" };
 
 // A market-maker spread on a liquid US large cap is a few tenths of a
 // percent. Anything wider means the book is empty or broken, so fall through
 // rather than quote it.
 const MAX_SPREAD = 0.02;
 
+// LS's own venue, at one-minute resolution. The live tick rides a websocket
+// we cannot use from here, so we take the last bar instead - a minute old at
+// worst, against a broker screen nobody reads to the second.
+async function lsExchange() {
+  const res = await fetch(LS_URL, { headers: UA });
+  if (!res.ok) throw new Error(`ls HTTP ${res.status}`);
+  const bars = (await res.json())?.series?.intraday?.data;
+  if (!Array.isArray(bars) || bars.length === 0) throw new Error("ls returned no intraday bars");
+
+  const [ts, mid] = bars[bars.length - 1];
+  if (!Number(mid)) throw new Error(`ls last bar unusable: ${JSON.stringify(bars[bars.length - 1])}`);
+
+  // NB: LS stamps these bars with Berlin wall-clock dressed up as epoch ms.
+  // It is passed through for display only and nothing here branches on it.
+  return { eur: Number(mid), bar_ts_berlin: ts };
+}
+
+// Same kind of venue, same hours, different market maker. Close enough to
+// stand in when LS is down.
 async function tradegate() {
-  const res = await fetch(TRADEGATE_URL, { headers: { "User-Agent": "sdr-monstr/1.0" } });
+  const res = await fetch(TRADEGATE_URL, { headers: UA });
   if (!res.ok) throw new Error(`tradegate HTTP ${res.status}`);
   const j = await res.json();
 
@@ -40,8 +63,7 @@ async function tradegate() {
   if (!bid || !ask || bid <= 0 || ask < bid) throw new Error(`tradegate quote unusable: ${JSON.stringify(j)}`);
   if ((ask - bid) / bid > MAX_SPREAD) throw new Error(`tradegate spread ${bid}/${ask} too wide`);
 
-  // TR values a holding off the bid - that's what you'd actually get out.
-  return { eur: bid, bid, ask, last: Number(j?.last) || null, previous_close: Number(j?.close) || null };
+  return { eur: (bid + ask) / 2, bid, ask, last: Number(j?.last) || null, previous_close: Number(j?.close) || null };
 }
 
 async function yahooQuote(symbol: string) {
@@ -63,8 +85,8 @@ async function stuttgart() {
   return { eur: q.price, quoted_at: q.at };
 }
 
-// Last resort, and the least like what TR shows: yesterday's NASDAQ close
-// converted at spot, for as long as the US market is shut.
+// Last resort, and the least like what TR shows: the NASDAQ print converted
+// at spot, frozen at yesterday's close for as long as the US market is shut.
 async function nasdaqTimesFx() {
   const [us, fx] = await Promise.all([yahooQuote("MNST"), yahooQuote("EURUSD=X")]);
   if (!fx.price) throw new Error("no EURUSD rate");
@@ -76,6 +98,7 @@ Deno.serve(async (req) => {
 
   const notes: string[] = [];
   const chain: [string, () => Promise<Record<string, unknown>>][] = [
+    ["ls", lsExchange],
     ["tradegate", tradegate],
     ["stuttgart", stuttgart],
     ["nasdaq_fx", nasdaqTimesFx],
