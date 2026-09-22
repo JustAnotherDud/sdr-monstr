@@ -63,6 +63,26 @@ The key needs read/write on `bottle_log` and `investments`; scope the
 project's RLS to that. Use the **conn** button in the header to change or
 clear the saved connection.
 
+## The price it shows you
+
+The "price now" stat has to agree with what the broker screen says, or the
+gain/loss below it is theatre. Trade Republic quotes Monster on LS Exchange,
+in EUR, 07:30–23:00 CET. A NASDAQ price in USD converted at spot does *not*
+agree with that: NASDAQ only trades 15:30–22:00 CET, so all European morning
+the converted number is stuck on yesterday's close while the broker moves.
+
+So `supabase/functions/mnst-price/index.ts` asks Tradegate instead — a German
+market-maker venue on the same hours as LS, already in EUR — and returns its
+**bid**, which is what a holding is worth to you and what TR values yours at.
+Checked against a live TR screen at 12:01 CEST: TR 38.260, Tradegate bid
+38.245, mid 38.398, NASDAQ close x FX 38.375. The bid wins by an order of
+magnitude.
+
+NASDAQ x FX (Twelve Data) stays as the fallback for when Tradegate is
+unreachable; the app labels it in red when that happens, because it is
+yesterday's number until the US opens. That path needs `TWELVEDATA_API_KEY`
+set as a Supabase secret — it is deliberately not in this repo.
+
 ## Stack
 
 Vanilla JS, Supabase JS (ESM from `esm.sh`), a service worker (network-first

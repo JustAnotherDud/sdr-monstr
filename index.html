@@ -382,18 +382,20 @@ function renderCycleProgress(start, end){
 }
 
 // current MNST price in EUR, cached in localStorage since it's an external
-// fetch that can fail or rate-limit. Fetched server-side (Twelve Data quote
-// + Frankfurter FX conversion, key held in the function, never in the
-// client) by the "mnst-price" Supabase Edge Function, so the browser never
-// has to deal with a third-party API's CORS policy directly.
+// fetch that can fail or rate-limit. The "mnst-price" Supabase Edge Function
+// does the fetching server-side, so the browser never deals with a
+// third-party API's CORS policy. It quotes Tradegate's EUR bid (the venue
+// Trade Republic's price tracks) and only falls back to NASDAQ-in-USD times
+// spot FX when that venue is unreachable. Short cache: the whole point is
+// matching a live broker screen.
 const SHARE_PRICE_CACHE_KEY = 'sdr_share_price_cache';
-const SHARE_PRICE_CACHE_MS = 15 * 60 * 1000;
+const SHARE_PRICE_CACHE_MS = 2 * 60 * 1000;
 
 async function fetchSharePriceEUR(){
   const supabaseUrl = localStorage.getItem('sdr_url');
 
   const cached = JSON.parse(localStorage.getItem(SHARE_PRICE_CACHE_KEY) || 'null');
-  if(cached && Date.now() - cached.ts < SHARE_PRICE_CACHE_MS) return { eur: cached.eur };
+  if(cached && Date.now() - cached.ts < SHARE_PRICE_CACHE_MS) return { eur: cached.eur, source: cached.source };
 
   let res;
   try {
@@ -405,8 +407,8 @@ async function fetchSharePriceEUR(){
   if(!res.ok || json.error) return { error: json.error || `HTTP ${res.status}` };
   if(json.eur == null) return { error: 'no price in response' };
 
-  localStorage.setItem(SHARE_PRICE_CACHE_KEY, JSON.stringify({ eur: json.eur, ts: Date.now() }));
-  return { eur: json.eur };
+  localStorage.setItem(SHARE_PRICE_CACHE_KEY, JSON.stringify({ eur: json.eur, source: json.source, ts: Date.now() }));
+  return { eur: json.eur, source: json.source };
 }
 
 function renderSharePrice(investedSum, sharesHeld){
@@ -415,7 +417,8 @@ function renderSharePrice(investedSum, sharesHeld){
   fetchSharePriceEUR().then(result => {
     if(result.eur != null){
       sharePriceStat.textContent = fmt(result.eur);
-      sharePriceDebug.textContent = '';
+      // the fallback is yesterday's NASDAQ close until the US opens, so say so
+      sharePriceDebug.textContent = result.source === 'nasdaq_fx' ? 'fallback: NASDAQ x FX' : '';
       if(sharesHeld > 0){
         const value = sharesHeld * result.eur;
         portfolioValueStat.textContent = fmt(value);
