@@ -74,14 +74,18 @@ the converted number is stuck on yesterday's close while the broker moves.
 So `supabase/functions/mnst-price/index.ts` asks Tradegate instead — a German
 market-maker venue on the same hours as LS, already in EUR — and returns its
 **bid**, which is what a holding is worth to you and what TR values yours at.
-Checked against a live TR screen at 12:01 CEST: TR 38.260, Tradegate bid
-38.245, mid 38.398, NASDAQ close x FX 38.375. The bid wins by an order of
-magnitude.
+Checked against a live TR screen on 2026-09-22, NASDAQ shut: TR said 38.260
+and the function returned 38.26. The same moment, the mid was 38.398 and the
+old NASDAQ-close-times-FX number was 38.375 — both off by an order of
+magnitude more than the bid.
 
-NASDAQ x FX (Twelve Data) stays as the fallback for when Tradegate is
-unreachable; the app labels it in red when that happens, because it is
-yesterday's number until the US opens. That path needs `TWELVEDATA_API_KEY`
-set as a Supabase secret — it is deliberately not in this repo.
+Behind it sit two fallbacks, tried in order: Stuttgart (also EUR, also German
+hours) and then NASDAQ in USD converted at spot. The app names whichever one
+it landed on, in red, under the price — the fallbacks are worse by
+construction and you should be able to see when you are looking at one.
+
+All three sources are keyless. The function holds no API key and needs no
+Supabase secret, which is one less thing to leak out of a public repo.
 
 ## Stack
 

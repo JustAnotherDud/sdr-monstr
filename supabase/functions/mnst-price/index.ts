@@ -14,14 +14,16 @@ function jsonResponse(body: unknown, status = 200) {
 }
 
 // Monster Beverage. Tradegate quotes it in EUR on a German market-maker venue
-// that trades 08:00–22:00 CET, same shape as the LS Exchange book Trade
-// Republic shows you. Twelve Data only has the NASDAQ print in USD, which is
-// frozen outside 15:30–22:00 CET — that gap, not the FX, is what makes the
-// number drift away from TR during a European morning.
+// that trades 08:00-22:00 CET, same shape as the LS Exchange book Trade
+// Republic shows you. A NASDAQ print in USD is frozen outside 15:30-22:00
+// CET - that gap, not the FX, is what makes the number drift away from TR
+// during a European morning.
 const ISIN = "US61174X1090";
 const TRADEGATE_URL = `https://www.tradegatebsx.com/refresh.php?isin=${ISIN}`;
 
-const TWELVEDATA_API_KEY = Deno.env.get("TWELVEDATA_API_KEY") ?? "";
+// Every source here is keyless on purpose: nothing to store, nothing to leak,
+// nothing to rotate.
+const YAHOO = "https://query1.finance.yahoo.com/v8/finance/chart";
 
 // A market-maker spread on a liquid US large cap is a few tenths of a
 // percent. Anything wider means the book is empty or broken, so fall through
@@ -29,69 +31,64 @@ const TWELVEDATA_API_KEY = Deno.env.get("TWELVEDATA_API_KEY") ?? "";
 const MAX_SPREAD = 0.02;
 
 async function tradegate() {
-  const res = await fetch(TRADEGATE_URL, {
-    headers: { "User-Agent": "sdr-monstr/1.0" },
-  });
+  const res = await fetch(TRADEGATE_URL, { headers: { "User-Agent": "sdr-monstr/1.0" } });
   if (!res.ok) throw new Error(`tradegate HTTP ${res.status}`);
   const j = await res.json();
 
   const bid = Number(j?.bid);
   const ask = Number(j?.ask);
-  const last = Number(j?.last);
-  const close = Number(j?.close);
   if (!bid || !ask || bid <= 0 || ask < bid) throw new Error(`tradegate quote unusable: ${JSON.stringify(j)}`);
   if ((ask - bid) / bid > MAX_SPREAD) throw new Error(`tradegate spread ${bid}/${ask} too wide`);
 
-  // TR values a holding off the bid — that's what you'd actually get out.
-  return { eur: bid, bid, ask, last: last || null, previous_close: close || null };
+  // TR values a holding off the bid - that's what you'd actually get out.
+  return { eur: bid, bid, ask, last: Number(j?.last) || null, previous_close: Number(j?.close) || null };
 }
 
+async function yahooQuote(symbol: string) {
+  const res = await fetch(`${YAHOO}/${symbol}?interval=1m&range=1d`, {
+    headers: { "User-Agent": "Mozilla/5.0" },
+  });
+  if (!res.ok) throw new Error(`yahoo ${symbol} HTTP ${res.status}`);
+  const meta = (await res.json())?.chart?.result?.[0]?.meta;
+  const price = Number(meta?.regularMarketPrice);
+  if (!price) throw new Error(`yahoo ${symbol} gave no price`);
+  return { price, at: Number(meta?.regularMarketTime) || null, currency: meta?.currency };
+}
+
+// Stuttgart lists Monster in EUR and keeps German venue hours, so it drifts
+// from TR far less than a converted NASDAQ close does.
+async function stuttgart() {
+  const q = await yahooQuote("MOB.SG");
+  if (q.currency !== "EUR") throw new Error(`MOB.SG came back in ${q.currency}`);
+  return { eur: q.price, quoted_at: q.at };
+}
+
+// Last resort, and the least like what TR shows: yesterday's NASDAQ close
+// converted at spot, for as long as the US market is shut.
 async function nasdaqTimesFx() {
-  if (!TWELVEDATA_API_KEY) throw new Error("no TWELVEDATA_API_KEY set");
-  const [quoteRes, fxRes] = await Promise.all([
-    fetch(`https://api.twelvedata.com/quote?symbol=MNST&apikey=${TWELVEDATA_API_KEY}`),
-    fetch(`https://api.twelvedata.com/exchange_rate?symbol=USD/EUR&apikey=${TWELVEDATA_API_KEY}`),
-  ]);
-  if (!quoteRes.ok) throw new Error(`twelvedata quote HTTP ${quoteRes.status}`);
-  if (!fxRes.ok) throw new Error(`twelvedata fx HTTP ${fxRes.status}`);
-
-  const q = await quoteRes.json();
-  const fx = await fxRes.json();
-  const usd = parseFloat(q?.close);
-  const rate = parseFloat(fx?.rate);
-  if (!usd || Number.isNaN(usd)) throw new Error(`no price from twelvedata: ${JSON.stringify(q)}`);
-  if (!rate || Number.isNaN(rate)) throw new Error(`no fx from twelvedata: ${JSON.stringify(fx)}`);
-
-  return {
-    eur: usd * rate,
-    usd,
-    rate,
-    // seconds since the print Twelve Data is quoting, so a frozen feed is
-    // visible instead of silently passing for live
-    quote_age_s: q?.timestamp ? Math.round(Date.now() / 1000 - Number(q.timestamp)) : null,
-    market_open: q?.is_market_open ?? null,
-  };
+  const [us, fx] = await Promise.all([yahooQuote("MNST"), yahooQuote("EURUSD=X")]);
+  if (!fx.price) throw new Error("no EURUSD rate");
+  return { eur: us.price / fx.price, usd: us.price, eurusd: fx.price, quoted_at: us.at };
 }
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: CORS_HEADERS });
 
-  const errors: string[] = [];
+  const notes: string[] = [];
+  const chain: [string, () => Promise<Record<string, unknown>>][] = [
+    ["tradegate", tradegate],
+    ["stuttgart", stuttgart],
+    ["nasdaq_fx", nasdaqTimesFx],
+  ];
 
-  // Tradegate first: it is already in EUR, it is free, and it tracks the venue
-  // the broker quotes. Twelve Data is only touched when that fails, which also
-  // keeps the free 800-calls-a-day budget untouched on a normal load.
-  try {
-    return jsonResponse({ ...(await tradegate()), source: "tradegate", currency: "EUR" });
-  } catch (err) {
-    errors.push(String(err));
+  for (const [source, fn] of chain) {
+    try {
+      const quote = await fn();
+      return jsonResponse({ ...quote, source, currency: "EUR", notes: notes.length ? notes : undefined });
+    } catch (err) {
+      notes.push(String(err));
+    }
   }
 
-  try {
-    return jsonResponse({ ...(await nasdaqTimesFx()), source: "nasdaq_fx", currency: "EUR", notes: errors });
-  } catch (err) {
-    errors.push(String(err));
-  }
-
-  return jsonResponse({ error: errors.join("; ") }, 502);
+  return jsonResponse({ error: notes.join("; ") }, 502);
 });

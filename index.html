@@ -385,11 +385,13 @@ function renderCycleProgress(start, end){
 // fetch that can fail or rate-limit. The "mnst-price" Supabase Edge Function
 // does the fetching server-side, so the browser never deals with a
 // third-party API's CORS policy. It quotes Tradegate's EUR bid (the venue
-// Trade Republic's price tracks) and only falls back to NASDAQ-in-USD times
-// spot FX when that venue is unreachable. Short cache: the whole point is
-// matching a live broker screen.
+// Trade Republic's price tracks), falling back to Stuttgart and then to
+// NASDAQ-in-USD times spot FX. Short cache: the whole point is matching a
+// live broker screen.
 const SHARE_PRICE_CACHE_KEY = 'sdr_share_price_cache';
 const SHARE_PRICE_CACHE_MS = 2 * 60 * 1000;
+// anything but the primary venue drifts from the broker screen, so name it
+const PRICE_FALLBACK_LABEL = { stuttgart: 'fallback: Stuttgart', nasdaq_fx: 'fallback: NASDAQ x FX' };
 
 async function fetchSharePriceEUR(){
   const supabaseUrl = localStorage.getItem('sdr_url');
@@ -417,8 +419,7 @@ function renderSharePrice(investedSum, sharesHeld){
   fetchSharePriceEUR().then(result => {
     if(result.eur != null){
       sharePriceStat.textContent = fmt(result.eur);
-      // the fallback is yesterday's NASDAQ close until the US opens, so say so
-      sharePriceDebug.textContent = result.source === 'nasdaq_fx' ? 'fallback: NASDAQ x FX' : '';
+      sharePriceDebug.textContent = PRICE_FALLBACK_LABEL[result.source] || '';
       if(sharesHeld > 0){
         const value = sharesHeld * result.eur;
         portfolioValueStat.textContent = fmt(value);
