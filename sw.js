@@ -1,4 +1,4 @@
-const CACHE = 'sdr-monstr-v11';
+const CACHE = 'sdr-monstr-v12';
 const SHELL = ['./', './index.html', './manifest.json', './icons/icon-32.png', './icons/icon-192.png', './icons/icon-512.png'];
 
 // Known debt: plain-fetch precache can serve a stale shell (see README).
