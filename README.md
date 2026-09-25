@@ -81,6 +81,8 @@ no bundler.
 - **No auto-refresh.** The price loads with `loadAndRender()` (on load and
   after add, delete or buy) behind a two-minute cache. An open tab never
   updates it.
+- **Buy is not atomic.** "Mark as invested" makes three separate writes; if
+  one fails, fix the rows by hand.
 - **Update lag.** The service worker precaches the shell with a plain fetch,
   which the HTTP cache can serve. GitHub Pages sends HTML with
   `max-age=600`, so after a deploy a returning user may see the old version
