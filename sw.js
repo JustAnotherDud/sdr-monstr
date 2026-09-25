@@ -1,4 +1,4 @@
-const CACHE = 'sdr-monstr-v10';
+const CACHE = 'sdr-monstr-v11';
 const SHELL = ['./', './index.html', './manifest.json', './icons/icon-32.png', './icons/icon-192.png', './icons/icon-512.png'];
 
 // KNOWN DEBT (28 Aug 2026): the install below caches './' and './index.html'

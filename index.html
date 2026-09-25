@@ -151,15 +151,24 @@
   <label>Anon / publishable key
     <input type="text" id="setup-key" placeholder="sb_publishable_&hellip; or eyJ&hellip;" autocomplete="off">
   </label>
-  <button class="save-btn" type="button" id="setupSave">Save and continue</button>
+  <label>Email
+    <input type="email" id="setup-email" autocomplete="username">
+  </label>
+  <label>Password
+    <input type="password" id="setup-password" autocomplete="current-password">
+  </label>
+  <button class="save-btn" type="button" id="setupSave">Sign in</button>
   <p id="setup-error"></p>
-  <p>The key needs read/write on those two tables only &mdash; scope the project's RLS accordingly.</p>
+  <p>RLS only lets the signed-in owner read or write those tables &mdash; the key alone gets nothing.</p>
 </div>
 
 <div class="app hidden" id="app">
   <header>
     <div class="brand">SDR <span class="arrow">→</span> MNST</div>
-    <button class="conn-btn" type="button" id="connBtn" title="Change connection">conn</button>
+    <span>
+      <button class="conn-btn" type="button" id="connBtn" title="Change connection">conn</button>
+      <button class="conn-btn" type="button" id="logoutBtn" title="Sign out">logout</button>
+    </span>
   </header>
 
   <div class="cycle-progress">
@@ -261,35 +270,77 @@ const setupUrl = document.getElementById('setup-url');
 const setupKey = document.getElementById('setup-key');
 const setupError = document.getElementById('setup-error');
 
-function init(){
+const setupEmail = document.getElementById('setup-email');
+const setupPassword = document.getElementById('setup-password');
+const setupSaveBtn = document.getElementById('setupSave');
+
+// RLS only admits the `authenticated` owner, so no session = no data.
+// supabase-js keeps the session in localStorage and refreshes the token.
+function makeClient(url, key){
+  const client = createClient(url, key, { auth: { persistSession: true, autoRefreshToken: true } });
+  client.auth.onAuthStateChange((event, session) => {
+    if(!session && client === supabase) showSetup();
+  });
+  return client;
+}
+
+function showSetup(){
+  const hasConn = !!(localStorage.getItem('sdr_url') && localStorage.getItem('sdr_key'));
+  // URL/key already saved: only ask for email + password
+  setupUrl.parentElement.classList.toggle('hidden', hasConn);
+  setupKey.parentElement.classList.toggle('hidden', hasConn);
+  setupPassword.value = '';
+  appScreen.classList.add('hidden');
+  setupScreen.classList.remove('hidden');
+}
+
+async function init(){
   const url = localStorage.getItem('sdr_url');
   const key = localStorage.getItem('sdr_key');
-  if(url && key){
-    supabase = createClient(url, key);
-    setupScreen.classList.add('hidden');
-    appScreen.classList.remove('hidden');
-    loadAndRender();
-  } else {
-    appScreen.classList.add('hidden');
-    setupScreen.classList.remove('hidden');
+  if(!url || !key){ supabase = null; showSetup(); return; }
+  if(!supabase) supabase = makeClient(url, key);
+  const { data: { session } } = await supabase.auth.getSession();
+  if(!session){ showSetup(); return; }
+  setupScreen.classList.add('hidden');
+  appScreen.classList.remove('hidden');
+  loadAndRender();
+}
+
+async function saveSetup(){
+  const hasConn = !!(localStorage.getItem('sdr_url') && localStorage.getItem('sdr_key'));
+  const url = hasConn ? localStorage.getItem('sdr_url') : setupUrl.value.trim().replace(/\/+$/, '');
+  const key = hasConn ? localStorage.getItem('sdr_key') : setupKey.value.trim();
+  const email = setupEmail.value.trim();
+  const password = setupPassword.value;
+  if(!url || !key || !email || !password){ setupError.textContent = 'Fill in every field.'; return; }
+  setupError.textContent = '';
+  setupSaveBtn.disabled = true;
+  try {
+    const client = supabase || makeClient(url, key);
+    const { error } = await client.auth.signInWithPassword({ email, password });
+    if(error){ setupError.textContent = `Sign-in failed: ${error.message}`; return; }
+    supabase = client;
+    // URL/key are only kept once they have produced a valid session
+    localStorage.setItem('sdr_url', url);
+    localStorage.setItem('sdr_key', key);
+    await init();
+  } finally {
+    setupSaveBtn.disabled = false;
   }
 }
 
-function saveSetup(){
-  const url = setupUrl.value.trim().replace(/\/+$/, '');
-  const key = setupKey.value.trim();
-  if(!url || !key){ setupError.textContent = 'Fill in both the URL and the key.'; return; }
-  setupError.textContent = '';
-  localStorage.setItem('sdr_url', url);
-  localStorage.setItem('sdr_key', key);
-  init();
+async function logout(){
+  if(!confirm('Sign out?')) return;
+  if(supabase) await supabase.auth.signOut();
+  showSetup();
 }
 
-function clearSetup(){
+async function clearSetup(){
   if(!confirm('Forget the saved connection in this browser?')) return;
   // prefill so re-adding is just "check and Save", not retyping from scratch
   setupUrl.value = localStorage.getItem('sdr_url') || '';
   setupKey.value = localStorage.getItem('sdr_key') || '';
+  if(supabase) await supabase.auth.signOut();
   localStorage.removeItem('sdr_url');
   localStorage.removeItem('sdr_key');
   supabase = null;
@@ -298,6 +349,7 @@ function clearSetup(){
 
 document.getElementById('setupSave').onclick = saveSetup;
 document.getElementById('connBtn').onclick = clearSetup;
+document.getElementById('logoutBtn').onclick = logout;
 
 const RATE = 0.10;
 const PERIOD_DAYS = 14; // investing cadence: every 2 weeks, anchored on the last invested_at

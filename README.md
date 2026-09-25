@@ -57,11 +57,14 @@ It's a static site — `index.html` + `sw.js` + `manifest.json` + icons, nothing
 to build. Serve the folder from any static host (GitHub Pages, or
 `python -m http.server` locally) and open it.
 
-On first load it asks for the **Supabase project URL** and an **anon /
-publishable key**. Those are kept in `localStorage` only — never in the code.
-The key needs read/write on `bottle_log` and `investments`; scope the
-project's RLS to that. Use the **conn** button in the header to change or
-clear the saved connection.
+On first load it asks for the **Supabase project URL**, an **anon /
+publishable key**, and the owner's **email + password** (Supabase Auth,
+`signInWithPassword`). URL and key are kept in `localStorage` only — never in
+the code — and only once they have produced a valid session. RLS on
+`bottle_log` and `investments` admits only that signed-in user, so the key
+alone reads nothing. The session persists (supabase-js, `localStorage`,
+auto-refresh); without one the app stays on the sign-in screen. **logout** in
+the header signs out; **conn** also clears the saved connection.
 
 ## The price it shows you
 
