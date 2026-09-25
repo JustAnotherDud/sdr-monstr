@@ -459,40 +459,23 @@ function renderSharePrice(investedSum, sharesHeld){
   avgCostStat.textContent = sharesHeld > 0 ? fmt(investedSum / sharesHeld) : '—';
 
   fetchSharePriceEUR().then(result => {
-    if(result.eur != null){
-      sharePriceStat.textContent = fmt(result.eur);
-      sharePriceDebug.textContent = PRICE_FALLBACK_LABEL[result.source] || '';
-      if(sharesHeld > 0){
-        const value = sharesHeld * result.eur;
-        portfolioValueStat.textContent = fmt(value);
-        if(investedSum > 0){
-          const gain = value - investedSum;
-          const pct = (gain / investedSum) * 100;
-          const sign = gain >= 0 ? '+' : '−';
-          const cls = gain >= 0 ? 'pos' : 'neg';
-          portfolioGain.textContent = `${sign}${fmt(Math.abs(gain))}`;
-          portfolioGain.className = 'portfolio-value ' + cls;
-          portfolioGainPct.textContent = `${sign}${Math.abs(pct).toFixed(2)}%`;
-          portfolioGainPct.className = 'portfolio-gain ' + cls;
-        } else {
-          portfolioGain.textContent = '—';
-          portfolioGain.className = 'portfolio-value';
-          portfolioGainPct.textContent = '';
-        }
-      } else {
-        portfolioValueStat.textContent = '—';
-        portfolioGain.textContent = '—';
-        portfolioGain.className = 'portfolio-value';
-        portfolioGainPct.textContent = '';
-      }
-    } else {
-      sharePriceStat.textContent = '—';
-      portfolioValueStat.textContent = '—';
-      sharePriceDebug.textContent = result.error || '';
-      portfolioGain.textContent = '—';
-      portfolioGain.className = 'portfolio-value';
-      portfolioGainPct.textContent = '';
-    }
+    const ok = result.eur != null;
+    const value = ok && sharesHeld > 0 ? sharesHeld * result.eur : null;
+    sharePriceStat.textContent = ok ? fmt(result.eur) : '—';
+    sharePriceDebug.textContent = ok ? (PRICE_FALLBACK_LABEL[result.source] || '') : (result.error || '');
+    portfolioValueStat.textContent = value != null ? fmt(value) : '—';
+    portfolioGain.textContent = '—';
+    portfolioGain.className = 'portfolio-value';
+    portfolioGainPct.textContent = '';
+    if(value == null || investedSum <= 0) return;
+
+    const gain = value - investedSum;
+    const sign = gain >= 0 ? '+' : '−';
+    const cls = gain >= 0 ? 'pos' : 'neg';
+    portfolioGain.textContent = `${sign}${fmt(Math.abs(gain))}`;
+    portfolioGain.className = 'portfolio-value ' + cls;
+    portfolioGainPct.textContent = `${sign}${Math.abs(gain / investedSum * 100).toFixed(2)}%`;
+    portfolioGainPct.className = 'portfolio-gain ' + cls;
   });
 }
 
