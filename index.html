@@ -404,8 +404,7 @@ function mondayOf(d){
 // The cycle starts on the date of the last buy, or this week's Monday if none.
 function getPeriodBounds(investmentRows){
   const now = new Date(); now.setHours(0,0,0,0);
-  const lastInvested = (investmentRows || [])
-    .map(r => r.invested_at).filter(Boolean).sort().pop();
+  const lastInvested = investmentRows.map(r => r.invested_at).sort().pop();
   const anchor = lastInvested ? new Date(lastInvested.slice(0,10) + 'T00:00:00') : mondayOf(now);
   const elapsedDays = Math.max(0, Math.floor((now - anchor) / 86400000));
   const cycles = Math.floor(elapsedDays / PERIOD_DAYS);
@@ -497,9 +496,9 @@ async function loadAndRender(){
 
   if(e1 || e3){ setStatus('connection error, retrying', true); return; }
 
-  const total = (pending || []).reduce((s,e) => s + Number(e.value), 0);
-  const investedSum = (investmentRows || []).reduce((s,r) => s + Number(r.amount), 0);
-  const sharesHeld = (investmentRows || []).reduce((s,r) => s + (r.shares != null ? Number(r.shares) : 0), 0);
+  const total = pending.reduce((s,e) => s + Number(e.value), 0);
+  const investedSum = investmentRows.reduce((s,r) => s + Number(r.amount), 0);
+  const sharesHeld = investmentRows.reduce((s,r) => s + (r.shares != null ? Number(r.shares) : 0), 0);
 
   pendingInvestAmount = Math.floor(total);
   pendingRemainder = +(total - pendingInvestAmount).toFixed(2);
@@ -523,20 +522,15 @@ async function loadAndRender(){
   renderPeriodRange(start, end);
   renderCycleProgress(start, end);
 
-  const investEntries = (investmentRows || []).map(r => ({type:'invest', date: r.invested_at, value: Number(r.amount), detail: r}))
-    .sort((a,b) => new Date(b.date) - new Date(a.date));
-  const pendingEntries = (pending || []).slice(0,50).map(e => ({type:'entry', id: e.id, date: e.created_at, qty: e.qty, source: e.source, value: Number(e.value)}))
-    .sort((a,b) => new Date(b.date) - new Date(a.date));
-
-  renderBottleLog(pendingEntries);
-  renderInvestLog(investEntries);
+  renderBottleLog(pending.slice(0,50).sort((a,b) => new Date(b.created_at) - new Date(a.created_at)));
+  renderInvestLog(investmentRows.sort((a,b) => new Date(b.invested_at) - new Date(a.invested_at)));
 
   justAdded = false;
   setStatus('synced');
 }
 
 const dayKey = d => `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
-const entryLabels = {profit:'profit', deposit:'deposit', no_profit:'deposit', carry:'carried over'};
+const entryLabels = {profit:'profit', deposit:'deposit', no_profit:'deposit', carry:'carried over', seed:'opening balance'};
 
 function dayLabelFor(date){
   const today = new Date(); today.setHours(0,0,0,0);
@@ -586,14 +580,12 @@ function renderDayGrouped(container, rows, showOlderIdPrefix, emptyMsg){
   });
 }
 
-function renderBottleLog(pendingEntries){
-  const rows = pendingEntries.map((it, idx) => {
+function renderBottleLog(entries){
+  const rows = entries.map((it, idx) => {
     const enterClass = (justAdded && idx === 0) ? ' enter' : '';
-    const d = new Date(it.date);
-    const dstr = fmtTime(d);
-    const html = it.source === 'seed'
-      ? `<div class="entry${enterClass}"><span>${dstr} · <span class="meta">opening balance</span></span><span class="right"><span class="val">+${fmt(it.value)}</span><button class="del-btn" type="button" data-id="${it.id}" title="delete">✕</button></span></div>`
-      : `<div class="entry${enterClass}"><span>${dstr} · ${it.qty}× <span class="meta">${entryLabels[it.source] || it.source}</span></span><span class="right"><span class="val">+${fmt(it.value)}</span><button class="del-btn" type="button" data-id="${it.id}" title="delete">✕</button></span></div>`;
+    const d = new Date(it.created_at);
+    const qtyText = it.source === 'seed' ? '' : `${it.qty}× `;
+    const html = `<div class="entry${enterClass}"><span>${fmtTime(d)} · ${qtyText}<span class="meta">${entryLabels[it.source] || it.source}</span></span><span class="right"><span class="val">+${fmt(Number(it.value))}</span><button class="del-btn" type="button" data-id="${it.id}" title="delete">✕</button></span></div>`;
     return { day: dayKey(d), date: d, html };
   });
 
@@ -610,19 +602,17 @@ function renderBottleLog(pendingEntries){
   });
 }
 
-function renderInvestLog(investEntries){
-  const rows = investEntries.map(it => {
-    const d = new Date(it.date);
-    const dstr = fmtTime(d);
-    const det = it.detail;
+function renderInvestLog(investments){
+  const rows = investments.map(it => {
+    const d = new Date(it.invested_at);
     let sub = '';
-    if(det && (det.shares != null || det.share_price != null)){
+    if(it.shares != null || it.share_price != null){
       const parts = [];
-      if(det.shares != null) parts.push(`${fmtShares(det.shares)} shares`);
-      if(det.share_price != null) parts.push(`@ ${fmt(Number(det.share_price))}`);
+      if(it.shares != null) parts.push(`${fmtShares(it.shares)} shares`);
+      if(it.share_price != null) parts.push(`@ ${fmt(Number(it.share_price))}`);
       sub = `<div class="entry-sub">${parts.join(' ')}</div>`;
     }
-    const html = `<div class="entry-block"><div class="entry invest"><span>${dstr} · invested</span><span class="val">−${fmt(it.value)}</span></div>${sub}</div>`;
+    const html = `<div class="entry-block"><div class="entry invest"><span>${fmtTime(d)} · invested</span><span class="val">−${fmt(Number(it.amount))}</span></div>${sub}</div>`;
     return { day: dayKey(d), date: d, html };
   });
 
