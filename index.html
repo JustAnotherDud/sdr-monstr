@@ -511,11 +511,9 @@ async function loadAndRender(){
     investBtn.disabled = true;
     const needed = (1 - total).toFixed(2);
     investBtn.textContent = `Need €${needed} more to invest`;
-    investBtn.title = `Need €${needed} more to invest`;
   } else {
     investBtn.disabled = false;
     investBtn.textContent = INVEST_BTN_DEFAULT;
-    investBtn.removeAttribute('title');
   }
 
   const { start, end } = getPeriodBounds(investmentRows);
@@ -643,12 +641,14 @@ investBtn.onclick = () => {
   investBtn.style.display = 'none';
 };
 
-investCancel.onclick = () => {
+function closeInvestForm(){
   investForm.style.display = 'none';
   investBtn.style.display = 'block';
   sharePriceInput.value = '';
   sharesInput.value = '';
-};
+}
+
+investCancel.onclick = closeInvestForm;
 
 investConfirm.onclick = async () => {
   investConfirm.disabled = true;
@@ -670,10 +670,7 @@ investConfirm.onclick = async () => {
   }
 
   investConfirm.disabled = false;
-  sharePriceInput.value = '';
-  sharesInput.value = '';
-  investForm.style.display = 'none';
-  investBtn.style.display = 'block';
+  closeInvestForm();
   await loadAndRender();
 
   if(insErr){ setStatus('bottles marked as invested, but the investment record failed to save: ' + insErr.message, true); }
