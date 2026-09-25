@@ -1,118 +1,88 @@
 # SDR → MNST
 
-A one-screen PWA for turning deposit-return bottles into Monster Beverage
+One-screen PWA that turns deposit-return bottles into Monster Beverage
 (`MNST`) stock.
 
-In Portugal a returned bottle is worth €0.10. This logs each batch of bottles,
-stacks the cash, and — once there's at least a whole euro — records it as a
-stock buy. A progress bar tracks a 14-day cycle, anchored to the date of the
-last investment. Single user, one Supabase project behind it, no build step.
+In Portugal a returned bottle is worth €0.10. The app logs each batch, adds
+up the cash and, once there is at least €1, records a stock buy. A progress
+bar tracks a 14-day cycle anchored on the date of the last buy. Single user,
+one Supabase project, no build step.
 
-## Why whole euros (the one real design decision)
+## Whole euros
 
-You can only buy stock in whole currency units, so an investment always
-**floors to the euro**. The leftover cents don't vanish and don't get rounded
-away: on "Mark as invested", `floor(total)` is written to the `investments`
-table, and `total − floor(total)` is written straight back into `bottle_log`
-as a row with `source: 'carry'` and that exact value.
-
-That carry row:
-
-- **seeds next cycle's pot** — it's already counted in the running total on
-  the next load;
-- **is tagged `source: 'carry'`**, not `profit`/`deposit`, so it still shows
-  on the bottle log but is clearly not an actual batch of bottles (see
-  Sources).
-
-So the running total is always honest about fractional amounts, and every
-euro that goes in is a euro you could actually have invested.
+You buy in whole euros, so a buy always floors the total. On "Mark as
+invested", `floor(total)` goes to `investments` and the cents left over go
+back into `bottle_log` as a row with `source: 'carry'`. That row seeds the
+next cycle's total and shows in the log as "carried over".
 
 ## Sources
 
-Each batch is tagged with one of two sources, picked with the buttons in
-"Add bottles":
+Picked with the buttons in "Add bottles":
 
 | Source | Meaning |
 |---|---|
-| `profit` | found on the street / a bin, or machine trickery (over-counted a return) |
-| `deposit` | reclaiming bottles that were already yours, or on someone else's behalf |
+| `profit` | found on the street or in a bin, or the machine over-counted |
+| `deposit` | your own bottles, or returned for someone else |
 
-`seed` (opening balance) and `carry` (see above) are internal — they show on
-the bottle log, tagged separately from an actual batch of bottles.
+`carry` (see above) and `seed` (opening balance) are written by the app or by
+hand, not picked.
 
 ## Data model (Supabase)
 
-Two tables:
-
-- **`bottle_log`** — `qty`, `source`, `value`, `unit_value`, `logged_date`,
-  `created_at`, `invested_at` (null until a batch is marked invested; all
-  pending rows get the same `invested_at` timestamp when you invest).
-- **`investments`** — `invested_at`, `amount` (the whole-euro part),
-  `share_price` and `shares` (both optional — fill them in if you know the
-  fill price).
+- **`bottle_log`**: `qty`, `source`, `value`, `unit_value`, `logged_date`,
+  `created_at`, `invested_at`. `invested_at` is null until a buy; a buy
+  stamps all pending rows with the same time.
+- **`investments`**: `invested_at`, `amount` (whole euros), `share_price` and
+  `shares` (both optional), `note` (unused), `created_at`.
 
 ## Running it
 
-It's a static site — `index.html` + `sw.js` + `manifest.json` + icons, nothing
-to build. Serve the folder from any static host (GitHub Pages, or
-`python -m http.server` locally) and open it.
+Static site: `index.html`, `sw.js`, `manifest.json` and `icons/`. Serve the
+folder from any static host (GitHub Pages, or `python -m http.server`).
 
-On first load it asks for the **Supabase project URL**, an **anon /
-publishable key**, and the owner's **email + password** (Supabase Auth,
-`signInWithPassword`). URL and key are kept in `localStorage` only — never in
-the code — and only once they have produced a valid session. RLS on
-`bottle_log` and `investments` admits only that signed-in user, so the key
-alone reads nothing. The session persists (supabase-js, `localStorage`,
-auto-refresh); without one the app stays on the sign-in screen. **logout** in
-the header signs out; **conn** also clears the saved connection.
+On first load it asks for the Supabase project URL, an anon or publishable
+key, and the owner's email and password (Supabase Auth,
+`signInWithPassword`). URL and key go to `localStorage` only after they give a
+valid session. RLS on `bottle_log` and `investments` admits only that user, so
+the key alone reads nothing. The session persists and auto-refreshes; without
+one the app stays on the sign-in screen. **logout** in the header signs out;
+**conn** also clears the saved connection.
 
-## The price it shows you
+## Price
 
-The "price now" stat has to agree with what the broker screen says, or the
-gain/loss below it is theatre. Trade Republic routes to LS Exchange and shows
-its quote, in EUR, 07:30–23:00 CET. A NASDAQ price in USD converted at spot
-does *not* agree with that: NASDAQ only trades 15:30–22:00 CET, so all
-European morning the converted number is stuck on yesterday's close while the
-broker moves.
+The "price now" stat must match the broker screen, or the gain below it
+means nothing. Trade Republic routes to LS Exchange and shows its EUR quote,
+07:30 to 23:00 CET. NASDAQ in USD at spot does not match: NASDAQ trades
+15:30 to 22:00 CET, so all morning the converted price sits on yesterday's
+close.
 
-So `supabase/functions/mnst-price/index.ts` reads LS itself. Two things about
-which number to take:
+`supabase/functions/mnst-price/index.ts` reads LS itself:
 
-- **The mid, not the bid.** Watch a TR screen for ten seconds and the price
-  flickers across the spread. LS publishes the midpoint of its own book as
-  *the* price — its charts fetch `quotetype=mid` — and that is the centre of
-  the flicker.
-- **The last one-minute bar.** LS pushes live ticks over a websocket an edge
-  function cannot hold open, so we take the intraday series instead. A minute
-  stale at worst, against a screen nobody reads to the second.
+- **The mid, not the bid.** A TR screen flickers across the spread. LS
+  publishes the midpoint of its book as the price (its charts ask for
+  `quotetype=mid`).
+- **The last one-minute bar.** Live ticks come over a websocket an edge
+  function cannot hold open, so it takes the intraday series. At most a
+  minute old.
 
-Behind it sit three fallbacks, tried in order: Tradegate's mid (same kind of
-venue, same hours, different market maker), Stuttgart, and finally NASDAQ in
-USD converted at spot. The app names whichever one it landed on, in red, under
-the price — the fallbacks are worse by construction and you should be able to
-see when you are looking at one.
+Fallbacks, in order: Tradegate mid, Stuttgart, then NASDAQ in USD at spot.
+The app names the fallback in red under the price.
 
-All four sources are keyless. The function holds no API key and needs no
-Supabase secret, which is one less thing to leak out of a public repo.
-
-### Known debt: it never refreshes itself
-
-There is no timer. The price is fetched when `loadAndRender()` runs — on load,
-and after adding, deleting or investing — behind a two-minute cache. A tab
-left open shows the same number forever.
+All sources are keyless. The function holds no API key or secret.
 
 ## Stack
 
-Vanilla JS, Supabase JS (ESM from `esm.sh`), a service worker (network-first
-for navigations so a deploy is picked up immediately, cache-first for the
-static shell). No framework, no bundler.
+Vanilla JS, Supabase JS (ESM from `esm.sh`), and a service worker:
+network-first for navigations, cache-first for static files. No framework,
+no bundler.
 
-### Known debt: the update lag
+## Known debt
 
-The service worker precaches the shell (`./`, `./index.html`) with a plain
-fetch, which can be served from the browser HTTP cache. GitHub Pages sends
-HTML with `Cache-Control: max-age=600`, so right after a deploy a returning
-user can keep seeing the previous version for up to ~10 minutes (plus one
-reload) before the SW cache refills. It's short and self-healing, so it's left
-as-is; the fix is to precache with `cache: 'reload'` (`c.addAll(SHELL.map(u =>
-new Request(u, { cache: 'reload' })))` in `sw.js`).
+- **No auto-refresh.** The price loads with `loadAndRender()` (on load and
+  after add, delete or buy) behind a two-minute cache. An open tab never
+  updates it.
+- **Update lag.** The service worker precaches the shell with a plain fetch,
+  which the HTTP cache can serve. GitHub Pages sends HTML with
+  `max-age=600`, so after a deploy a returning user may see the old version
+  for up to ~10 minutes. Fix: precache with
+  `new Request(u, { cache: 'reload' })` in `sw.js`.
