@@ -491,7 +491,7 @@ async function loadAndRender(){
   const { data: pending, error: e1 } = await supabase.from('bottle_log').select('*').is('invested_at', null).order('logged_date', {ascending:false});
   const { data: investmentRows, error: e3 } = await supabase.from('investments').select('invested_at, amount, share_price, shares');
 
-  if(e1 || e3){ setStatus('connection error, retrying', true); return; }
+  if(e1 || e3){ setStatus('connection error, reload to try again', true); return; }
 
   const total = pending.reduce((s,e) => s + Number(e.value), 0);
   const investedSum = investmentRows.reduce((s,r) => s + Number(r.amount), 0);
