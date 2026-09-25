@@ -261,7 +261,7 @@
 <script type="module">
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-// Credentials live in localStorage, not in the code. See the setup screen.
+// Credentials live in localStorage, not in the code.
 let supabase = null;
 
 const setupScreen = document.getElementById('setup-screen');
@@ -401,9 +401,7 @@ function mondayOf(d){
   return m;
 }
 
-// The current 2-week cycle starts on the date of the last investment (so it
-// resets exactly when you actually invest, not on a fixed calendar week).
-// Falls back to this week's Monday when there's no investment yet.
+// The cycle starts on the date of the last buy, or this week's Monday if none.
 function getPeriodBounds(investmentRows){
   const now = new Date(); now.setHours(0,0,0,0);
   const lastInvested = (investmentRows || [])
@@ -421,7 +419,6 @@ function renderPeriodRange(start, end){
   weekRange.textContent = `${f(start)} – ${f(end)}`;
 }
 
-// visual countdown to the end of the current cycle
 function renderCycleProgress(start, end){
   const now = new Date(); now.setHours(0,0,0,0);
   const elapsed = Math.min(PERIOD_DAYS, Math.max(0, Math.round((now - start) / 86400000)));
@@ -431,13 +428,8 @@ function renderCycleProgress(start, end){
   cycleDays.textContent = daysLeft <= 1 ? 'last day' : `${daysLeft} days left`;
 }
 
-// current MNST price in EUR, cached in localStorage since it's an external
-// fetch that can fail or rate-limit. The "mnst-price" Supabase Edge Function
-// does the fetching server-side, so the browser never deals with a
-// third-party API's CORS policy. It quotes the LS Exchange mid — the venue
-// Trade Republic routes to, and the number LS itself publishes — falling back
-// to Tradegate, Stuttgart and finally NASDAQ-in-USD times spot FX. Short
-// cache: the whole point is matching a live broker screen.
+// MNST price in EUR from the mnst-price edge function (see README).
+// Short cache: it has to match a live broker screen.
 const SHARE_PRICE_CACHE_KEY = 'sdr_share_price_cache';
 const SHARE_PRICE_CACHE_MS = 2 * 60 * 1000;
 // anything but the primary venue drifts from the broker screen, so name it
@@ -548,7 +540,6 @@ async function loadAndRender(){
   renderPeriodRange(start, end);
   renderCycleProgress(start, end);
 
-  // one history row per investment; amount is the integer actually invested, read from the investments table
   const investEntries = (investmentRows || []).map(r => ({type:'invest', date: r.invested_at, value: Number(r.amount), detail: r}))
     .sort((a,b) => new Date(b.date) - new Date(a.date));
   const pendingEntries = (pending || []).slice(0,50).map(e => ({type:'entry', id: e.id, date: e.created_at, qty: e.qty, source: e.source, value: Number(e.value)}))
