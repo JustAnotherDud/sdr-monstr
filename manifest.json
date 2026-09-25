@@ -1,7 +1,7 @@
 {
   "name": "SDR → MNST",
   "short_name": "SDR→MNST",
-  "description": "Log deposit-return bottles and stack cash for a weekly Monster stock buy",
+  "description": "Log deposit-return bottles and stack cash for a Monster stock buy every 14 days",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
