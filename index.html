@@ -528,7 +528,7 @@ async function loadAndRender(){
 }
 
 const dayKey = d => `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
-const entryLabels = {profit:'profit', deposit:'deposit', no_profit:'deposit', carry:'carried over', seed:'opening balance'};
+const entryLabels = {profit:'profit', deposit:'deposit', carry:'carried over', seed:'opening balance'};
 
 function dayLabelFor(date){
   const today = new Date(); today.setHours(0,0,0,0);
