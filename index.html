@@ -402,7 +402,8 @@ function mondayOf(d){
 function getPeriodBounds(investmentRows){
   const now = new Date(); now.setHours(0,0,0,0);
   const lastInvested = investmentRows.map(r => r.invested_at).sort().pop();
-  const anchor = lastInvested ? new Date(lastInvested.slice(0,10) + 'T00:00:00') : mondayOf(now);
+  const anchor = lastInvested ? new Date(lastInvested) : mondayOf(now);
+  anchor.setHours(0,0,0,0);
   const elapsedDays = Math.max(0, Math.floor((now - anchor) / 86400000));
   const cycles = Math.floor(elapsedDays / PERIOD_DAYS);
   const start = addDays(anchor, cycles * PERIOD_DAYS);
