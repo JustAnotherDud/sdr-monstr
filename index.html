@@ -24,7 +24,7 @@
     --err:#D9736F;
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
-  button,input{font:inherit;color:inherit;}
+  button,input,select{font:inherit;color:inherit;}
   :focus-visible{outline:2px solid var(--cyan);outline-offset:2px;border-radius:4px;}
   body{margin:0;background:var(--bg);color:var(--ink);font-family:'Archivo',sans-serif;min-height:100vh;display:flex;justify-content:center;padding:24px 16px 48px;padding-top:calc(24px + env(safe-area-inset-top));}
   .app{width:100%;max-width:420px;}
@@ -36,6 +36,7 @@
 
   .total{text-align:center;}
   .total .amount{font-family:'Martian Mono',monospace;font-weight:600;font-size:44px;color:var(--ink);font-variant-numeric:tabular-nums;letter-spacing:-0.5px;}
+  .total .amount.neg{color:var(--err);}
   .total .label{font-size:12px;color:var(--ink-dim);margin-top:2px;}
 
   .portfolio{display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;margin-top:20px;padding-top:16px;border-top:1px solid var(--rule);}
@@ -51,6 +52,8 @@
   .portfolio-secondary .portfolio-label{font-size:9.5px;}
   .price-debug{margin-top:6px;text-align:center;font-family:'Martian Mono',monospace;font-size:9.5px;color:var(--err);word-break:break-word;}
   .price-debug:empty{display:none;}
+  .stats-warn{margin-top:6px;text-align:center;font-family:'Martian Mono',monospace;font-size:9.5px;color:var(--ink-dim);}
+  .stats-warn:empty{display:none;}
 
   .cycle-progress{margin-top:8px;}
   .cycle-track{height:3px;border-radius:2px;background:var(--rule);overflow:hidden;}
@@ -72,7 +75,8 @@
   .qty-row{display:flex;align-items:center;gap:10px;}
   .qty-btn{width:38px;height:38px;border-radius:8px;border:1px solid var(--rule);background:var(--tape);color:var(--ink);font-size:18px;font-weight:600;display:flex;align-items:center;justify-content:center;cursor:pointer;}
   .qty-btn:active{background:var(--rule);}
-  .qty-val{font-family:'Martian Mono',monospace;font-size:19px;font-weight:600;min-width:28px;text-align:center;font-variant-numeric:tabular-nums;}
+  .qty-input{width:64px;height:38px;border-radius:8px;border:1px solid var(--rule);background:var(--bg);color:var(--ink);font-family:'Martian Mono',monospace;font-size:17px;font-weight:600;text-align:center;font-variant-numeric:tabular-nums;-moz-appearance:textfield;appearance:textfield;}
+  .qty-input::-webkit-outer-spin-button,.qty-input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0;}
   .add-btn{padding:11px 22px;border-radius:8px;border:1px solid var(--cyan);background:var(--tape);color:var(--cyan);font-weight:600;font-size:13px;cursor:pointer;}
   .add-btn:disabled{opacity:0.4;cursor:not-allowed;}
 
@@ -87,8 +91,10 @@
   .invest-input::placeholder,#setup-screen input::placeholder{color:var(--ink-dim);}
   .invest-actions{display:flex;gap:8px;margin-top:4px;}
   .invest-actions button{flex:1;padding:10px;border-radius:6px;font-weight:600;font-size:12.5px;cursor:pointer;}
+  .invest-actions button:disabled{opacity:0.5;cursor:not-allowed;}
   .invest-cancel{border:1px solid var(--rule);background:transparent;color:var(--ink-dim);}
   .invest-confirm{border:1px solid var(--brass);background:var(--brass);color:var(--bg);}
+  .danger-confirm{border:1px solid var(--err);background:var(--err);color:var(--bg);}
 
   .tape{background:var(--tape);border-radius:8px 8px 0 0;padding:16px 16px 0;margin-top:24px;}
   .tape-title{margin:0 0 12px;font-size:12px;color:var(--ink-dim);font-weight:600;}
@@ -99,14 +105,21 @@
 
   .entry{display:grid;grid-template-columns:1fr auto;align-items:baseline;gap:12px;padding:9px 0;border-bottom:1px dashed var(--rule);}
   .entry:last-child{border-bottom:none;}
-  .entry > span:first-child{color:var(--ink-dim);font-size:12.5px;}
+  .entry > span:first-child{color:var(--ink-dim);font-size:12.5px;overflow-wrap:anywhere;}
   .entry .meta{color:var(--ink-dim);font-size:10.5px;}
   .entry .val{font-family:'Martian Mono',monospace;color:var(--ink);text-align:right;font-variant-numeric:tabular-nums;font-size:12.5px;}
+  .entry .val.neg{color:var(--err);}
   .entry.invest .val{color:var(--brass);}
   .entry .right{display:flex;align-items:center;gap:8px;justify-content:flex-end;}
-  .del-btn{background:none;border:none;color:var(--ink-dim);font-size:13px;line-height:1;cursor:pointer;padding:2px 4px;font-family:'Martian Mono',monospace;}
+  .del-btn,.edit-btn{background:none;border:none;color:var(--ink-dim);font-size:13px;line-height:1;cursor:pointer;padding:2px 4px;font-family:'Martian Mono',monospace;}
   .del-btn:hover,.del-btn:focus-visible{color:var(--err);}
-  .entry-sub{font-family:'Martian Mono',monospace;font-size:10px;color:var(--ink-dim);padding:0 0 9px;font-variant-numeric:tabular-nums;}
+  .edit-btn:hover,.edit-btn:focus-visible{color:var(--cyan);}
+  .entry-sub{display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap;font-family:'Martian Mono',monospace;font-size:10px;color:var(--ink-dim);padding:0 0 9px;font-variant-numeric:tabular-nums;}
+  .row-actions{display:flex;gap:10px;}
+  .link-btn{background:none;border:none;color:var(--ink-dim);font-family:'Martian Mono',monospace;font-size:10px;cursor:pointer;padding:2px 0;text-decoration:underline;}
+  .link-btn:hover,.link-btn:focus-visible{color:var(--cyan);}
+  .link-btn.warn{color:var(--brass);}
+  .link-btn.danger:hover,.link-btn.danger:focus-visible{color:var(--err);}
   .empty{text-align:center;color:var(--ink-dim);font-size:12.5px;padding:20px 0;}
   /* the first group inside the "older" box has no sibling above it, but it
      still needs the same air as every other day boundary */
@@ -114,6 +127,18 @@
   .log-day-label{font-size:10px;font-weight:600;letter-spacing:0.5px;text-transform:uppercase;color:var(--ink-dim);margin-bottom:8px;}
   .show-more-btn{display:block;width:100%;margin-top:4px;padding:10px 0 2px;border:none;border-top:1px dashed var(--rule);background:none;color:var(--ink-dim);font-family:'Martian Mono',monospace;font-size:11px;cursor:pointer;text-align:center;}
   .show-more-btn:hover,.show-more-btn:focus-visible{color:var(--cyan);}
+
+  dialog{width:calc(100% - 32px);max-width:380px;padding:0;border:1px solid var(--rule);border-radius:10px;background:var(--tape);color:var(--ink);}
+  dialog::backdrop{background:rgba(8,11,12,0.7);}
+  .modal-box{padding:16px;}
+  .modal-box h3{margin:0 0 12px;font-size:14px;font-weight:600;}
+  .modal-text{margin:0 0 12px;font-size:12.5px;color:var(--ink-dim);line-height:1.5;overflow-wrap:anywhere;}
+  .modal-text b{color:var(--ink);font-weight:500;}
+  .modal-warn{margin:8px 0 0;color:var(--err);font-size:12px;font-weight:600;}
+  .modal-field{display:flex;flex-direction:column;gap:4px;margin-bottom:10px;font-size:11px;color:var(--ink-dim);}
+  .modal-field .invest-input{margin-bottom:0;}
+  .modal-err{min-height:1em;margin:0 0 8px;color:var(--err);font-size:11.5px;font-family:'Martian Mono',monospace;overflow-wrap:anywhere;}
+  select.invest-input{appearance:auto;}
 
   @keyframes tape-enter{from{opacity:0;transform:translateY(-6px);}to{opacity:1;transform:translateY(0);}}
   .enter{animation:tape-enter 180ms ease-out;}
@@ -140,12 +165,12 @@
 <div id="setup-screen" class="hidden">
   <div>
     <h1>SDR &rarr; MNST</h1>
-    <p>Connect to the Supabase project that holds the <code>bottle_log</code> and <code>investments</code> tables. Stored only in this browser &mdash; never in the code.</p>
+    <p>Connect to the Supabase project that holds the <code>bottle_log</code> and <code>investments</code> tables. Stored only in this browser, never in the code.</p>
   </div>
   <label>Project URL
     <input type="url" id="setup-url" placeholder="https://xxxx.supabase.co" autocomplete="off">
   </label>
-  <label>Anon / publishable key
+  <label>Anon / Publishable Key
     <input type="text" id="setup-key" placeholder="sb_publishable_&hellip; or eyJ&hellip;" autocomplete="off">
   </label>
   <label>Email
@@ -154,17 +179,17 @@
   <label>Password
     <input type="password" id="setup-password" autocomplete="current-password">
   </label>
-  <button class="save-btn" type="button" id="setupSave">Sign in</button>
+  <button class="save-btn" type="button" id="setupSave">Sign In</button>
   <p id="setup-error"></p>
-  <p>RLS only lets the signed-in owner read or write those tables &mdash; the key alone gets nothing.</p>
+  <p>RLS only lets the signed-in owner read or write those tables: the key alone gets nothing.</p>
 </div>
 
 <div class="app hidden" id="app">
   <header>
     <div class="brand">SDR <span class="arrow">→</span> MNST</div>
     <span>
-      <button class="conn-btn" type="button" id="connBtn" title="Change connection">conn</button>
-      <button class="conn-btn" type="button" id="logoutBtn" title="Sign out">logout</button>
+      <button class="conn-btn" type="button" id="connBtn" title="Change Connection">Conn</button>
+      <button class="conn-btn" type="button" id="logoutBtn" title="Sign Out">Logout</button>
     </span>
   </header>
 
@@ -178,55 +203,56 @@
 
   <div class="total">
     <div class="amount" id="totalAmount">€0.00</div>
-    <div class="label">to invest</div>
+    <div class="label">To Invest</div>
   </div>
 
   <div class="portfolio">
     <div class="portfolio-stat">
       <div class="portfolio-value" id="investedTotal">€0.00</div>
-      <div class="portfolio-label">invested</div>
+      <div class="portfolio-label">Invested</div>
     </div>
     <div class="portfolio-stat">
-      <div class="portfolio-value" id="portfolioValueStat">—</div>
-      <div class="portfolio-label">now</div>
+      <div class="portfolio-value" id="portfolioValueStat">–</div>
+      <div class="portfolio-label">Now</div>
     </div>
     <div class="portfolio-stat">
-      <div class="portfolio-value" id="portfolioGain">—</div>
-      <div class="portfolio-label">delta</div>
+      <div class="portfolio-value" id="portfolioGain">–</div>
+      <div class="portfolio-label">Delta</div>
       <div class="portfolio-gain" id="portfolioGainPct"></div>
     </div>
   </div>
   <div class="portfolio portfolio-secondary">
     <div class="portfolio-stat">
-      <div class="portfolio-value" id="avgCostStat">—</div>
-      <div class="portfolio-label">avg cost</div>
+      <div class="portfolio-value" id="avgCostStat">–</div>
+      <div class="portfolio-label">Avg Cost</div>
     </div>
     <div class="portfolio-stat">
-      <div class="portfolio-value" id="sharePriceStat">—</div>
-      <div class="portfolio-label">price now</div>
+      <div class="portfolio-value" id="sharePriceStat">–</div>
+      <div class="portfolio-label">Price Now</div>
     </div>
     <div class="portfolio-stat">
       <div class="portfolio-value" id="sharesHeldStat">0</div>
-      <div class="portfolio-label">shares</div>
+      <div class="portfolio-label">Shares</div>
     </div>
   </div>
   <div class="price-debug" id="sharePriceDebug"></div>
+  <div class="stats-warn" id="statsWarn"></div>
 
   <div class="card">
-    <h3>Add bottles</h3>
+    <h3>Add Bottles</h3>
     <div class="source-grid">
-      <button class="source-btn active" type="button" data-source="profit">Profit<small>found or scam</small></button>
-      <button class="source-btn" type="button" data-source="deposit">Deposit<small>reclaiming or favor</small></button>
+      <button class="source-btn active" type="button" data-source="profit">Profit<small>Found Or Scam</small></button>
+      <button class="source-btn" type="button" data-source="deposit">Deposit<small>Reclaiming Or Favor</small></button>
     </div>
     <div class="add-row">
       <div class="qty-row">
-        <button class="qty-btn" type="button" id="qtyMinus" aria-label="Decrease quantity">−</button>
-        <div class="qty-val" id="qtyVal">1</div>
-        <button class="qty-btn" type="button" id="qtyPlus" aria-label="Increase quantity">+</button>
+        <button class="qty-btn" type="button" id="qtyMinus" aria-label="Decrease Quantity">−</button>
+        <input class="qty-input" type="number" id="qtyInput" value="1" min="1" step="1" inputmode="numeric" aria-label="Quantity">
+        <button class="qty-btn" type="button" id="qtyPlus" aria-label="Increase Quantity">+</button>
       </div>
       <button class="add-btn" type="button" id="addBtn">Add</button>
     </div>
-    <button class="show-more-btn" type="button" id="expenseToggle">Add expense</button>
+    <button class="show-more-btn" type="button" id="expenseToggle">Add Expense</button>
     <div class="invest-form" id="expenseForm" style="display:none;">
       <input class="invest-input" type="text" id="expenseNote" placeholder="Description" maxlength="60">
       <input class="invest-input" type="number" id="expenseQty" placeholder="Quantity" value="1" step="1" min="1" inputmode="numeric">
@@ -238,12 +264,12 @@
     </div>
   </div>
 
-  <button class="invest-btn" type="button" id="investBtn" disabled>Mark as invested (Monster buy)</button>
+  <button class="invest-btn" type="button" id="investBtn" disabled>Mark As Invested (Monster Buy)</button>
   <div class="invest-form" id="investForm" style="display:none;">
     <div class="invest-form-row"><span>Investing</span><b id="investAmount">€0.00</b></div>
     <div class="carry-note" id="carryNote" style="display:none;"></div>
-    <input class="invest-input" type="number" id="sharePriceInput" placeholder="Price per share (optional)" step="0.01" min="0" inputmode="decimal">
-    <input class="invest-input" type="number" id="sharesInput" placeholder="Shares bought (optional)" step="0.000001" min="0" inputmode="decimal">
+    <input class="invest-input" type="number" id="sharePriceInput" placeholder="Price Per Share (Optional)" step="any" min="0" inputmode="decimal">
+    <input class="invest-input" type="number" id="sharesInput" placeholder="Shares Bought (Optional)" step="any" min="0" inputmode="decimal">
     <div class="invest-actions">
       <button class="invest-cancel" type="button" id="investCancel">Cancel</button>
       <button class="invest-confirm" type="button" id="investConfirm">Confirm</button>
@@ -251,22 +277,25 @@
   </div>
 
   <section class="tape">
-    <h2 class="tape-title">Bottle log</h2>
-    <div id="log"><div class="empty">loading…</div></div>
+    <h2 class="tape-title">Bottle Log</h2>
+    <div id="log"><div class="empty">Loading…</div></div>
     <div class="tape-tear" aria-hidden="true"></div>
   </section>
 
   <section class="tape">
-    <h2 class="tape-title">Stock buys</h2>
-    <div id="investLog"><div class="empty">loading…</div></div>
+    <h2 class="tape-title">Stock Buys</h2>
+    <div id="investLog"><div class="empty">Loading…</div></div>
     <div class="tape-tear" aria-hidden="true"></div>
   </section>
 
   <div class="status" id="statusLine"></div>
 </div>
 
+<dialog id="modal"></dialog>
+
 <script type="module">
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+// Pinned: the service worker caches this exact build for offline use (see sw.js).
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.118.0';
 
 // Credentials live in localStorage, not in the code.
 let supabase = null;
@@ -280,6 +309,59 @@ const setupError = document.getElementById('setup-error');
 const setupEmail = document.getElementById('setup-email');
 const setupPassword = document.getElementById('setup-password');
 const setupSaveBtn = document.getElementById('setupSave');
+
+// ---------- helpers ----------
+
+function esc(s){ return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+// All money maths runs in integer cents; floats only appear when drawing or sending.
+const toC = v => Math.round(Number(v) * 100);
+const fmtC = c => (c < 0 ? '−' : '') + '€' + (Math.abs(c) / 100).toFixed(2);
+function fmt(n){ return '€' + n.toFixed(2); }
+function fmtShares(n){ return (Math.round(Number(n) * 1000000) / 1000000).toString(); }
+function fmtTime(d){ return d.toLocaleTimeString('en-GB', {hour:'2-digit', minute:'2-digit'}); }
+const pad2 = n => String(n).padStart(2, '0');
+function toLocalInput(d){ return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}T${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`; }
+// the input may drop ":00" seconds from its value, so compare as times, not strings
+const sameTime = (a, b) => new Date(a).getTime() === new Date(b).getTime();
+function addDays(d, n){ const r = new Date(d); r.setDate(r.getDate() + n); return r; }
+
+const statusLine = document.getElementById('statusLine');
+function setStatus(msg, isErr){ statusLine.textContent = msg; statusLine.className = 'status' + (isErr ? ' err' : ''); }
+
+// ---------- modal ----------
+
+const dlg = document.getElementById('modal');
+
+// onOk(form) returns an error string to keep the modal open, or nothing to close it.
+function showModal({ title, html = '', ok = 'Save', danger = false, onOk }){
+  return new Promise(resolve => {
+    dlg.innerHTML = `<form class="modal-box"><h3>${esc(title)}</h3>${html}<div class="modal-err" role="alert"></div><div class="invest-actions"><button type="button" class="invest-cancel" data-act="cancel">Cancel</button><button type="submit" class="${danger ? 'danger-confirm' : 'invest-confirm'}">${esc(ok)}</button></div></form>`;
+    const form = dlg.firstElementChild;
+    const errEl = form.querySelector('.modal-err');
+    const okBtn = form.querySelector('[type=submit]');
+    let done = false;
+    const finish = v => { if(!done){ done = true; resolve(v); } };
+    form.querySelector('[data-act=cancel]').onclick = () => dlg.close();
+    form.onsubmit = async e => {
+      e.preventDefault();
+      okBtn.disabled = true; errEl.textContent = '';
+      let err = null;
+      try { err = onOk ? await onOk(form) : null; } catch(ex){ err = ex.message; }
+      okBtn.disabled = false;
+      if(err){ errEl.textContent = err; return; }
+      finish(true); dlg.close();
+    };
+    dlg.onclose = () => finish(false);
+    dlg.showModal();
+  });
+}
+
+const askConfirm = (title, textHtml, ok, danger, onOk) =>
+  showModal({ title, html: textHtml ? `<p class="modal-text">${textHtml}</p>` : '', ok, danger, onOk });
+
+const field = (label, input) => `<label class="modal-field"><span>${label}</span>${input}</label>`;
+
+// ---------- auth / setup ----------
 
 // RLS only admits the `authenticated` owner, so no session = no data.
 // supabase-js keeps the session in localStorage and refreshes the token.
@@ -319,13 +401,13 @@ async function saveSetup(){
   const key = hasConn ? localStorage.getItem('sdr_key') : setupKey.value.trim();
   const email = setupEmail.value.trim();
   const password = setupPassword.value;
-  if(!url || !key || !email || !password){ setupError.textContent = 'Fill in every field.'; return; }
+  if(!url || !key || !email || !password){ setupError.textContent = 'Fill In Every Field.'; return; }
   setupError.textContent = '';
   setupSaveBtn.disabled = true;
   try {
     const client = supabase || makeClient(url, key);
     const { error } = await client.auth.signInWithPassword({ email, password });
-    if(error){ setupError.textContent = `Sign-in failed: ${error.message}`; return; }
+    if(error){ setupError.textContent = `Sign-In Failed: ${error.message}`; return; }
     supabase = client;
     // URL/key are only kept once they have produced a valid session
     localStorage.setItem('sdr_url', url);
@@ -337,13 +419,13 @@ async function saveSetup(){
 }
 
 async function logout(){
-  if(!confirm('Sign out?')) return;
+  if(!await askConfirm('Sign Out?', '', 'Sign Out')) return;
   if(supabase) await supabase.auth.signOut();
   showSetup();
 }
 
 async function clearSetup(){
-  if(!confirm('Forget the saved connection in this browser?')) return;
+  if(!await askConfirm('Forget The Saved Connection In This Browser?', '', 'Forget', true)) return;
   // prefill so re-adding is just "check and Save", not retyping from scratch
   setupUrl.value = localStorage.getItem('sdr_url') || '';
   setupKey.value = localStorage.getItem('sdr_key') || '';
@@ -358,16 +440,18 @@ document.getElementById('setupSave').onclick = saveSetup;
 document.getElementById('connBtn').onclick = clearSetup;
 document.getElementById('logoutBtn').onclick = logout;
 
-const RATE = 0.10;
+// ---------- state and elements ----------
+
+const RATE_CENTS = 10;   // a bottle is worth 0.10
 const PERIOD_DAYS = 14; // investing cadence: every 2 weeks, anchored on the last invested_at
-let qty = 1;
 let source = 'profit';
 let justAdded = false;
 
-const qtyVal = document.getElementById('qtyVal');
+const qtyInput = document.getElementById('qtyInput');
 const totalAmount = document.getElementById('totalAmount');
 const cycleFill = document.getElementById('cycleFill');
 const cycleDays = document.getElementById('cycleDays');
+const weekRange = document.getElementById('weekRange');
 const logEl = document.getElementById('log');
 const investLogEl = document.getElementById('investLog');
 const investBtn = document.getElementById('investBtn');
@@ -379,9 +463,6 @@ const carryNote = document.getElementById('carryNote');
 const investCancel = document.getElementById('investCancel');
 const investConfirm = document.getElementById('investConfirm');
 const addBtn = document.getElementById('addBtn');
-const statusLine = document.getElementById('statusLine');
-const weekRange = document.getElementById('weekRange');
-const investedTotal = document.getElementById('investedTotal');
 const sharesHeldStat = document.getElementById('sharesHeldStat');
 const avgCostStat = document.getElementById('avgCostStat');
 const sharePriceStat = document.getElementById('sharePriceStat');
@@ -389,18 +470,12 @@ const portfolioValueStat = document.getElementById('portfolioValueStat');
 const sharePriceDebug = document.getElementById('sharePriceDebug');
 const portfolioGain = document.getElementById('portfolioGain');
 const portfolioGainPct = document.getElementById('portfolioGainPct');
+const investedTotal = document.getElementById('investedTotal');
+const statsWarn = document.getElementById('statsWarn');
 
-let pendingInvestAmount = 0;
-let pendingRemainder = 0;
-const INVEST_BTN_DEFAULT = 'Mark as invested (Monster buy)';
-
-function fmt(n){ return '€' + n.toFixed(2); }
-function fmtShares(n){ return (Math.round(Number(n) * 1000000) / 1000000).toString(); }
-function esc(s){ return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
-function fmtTime(d){ return d.toLocaleTimeString('en-GB', {hour:'2-digit', minute:'2-digit'}); }
-function setStatus(msg, isErr){ statusLine.textContent = msg; statusLine.className = 'status' + (isErr ? ' err' : ''); }
-
-function addDays(d, n){ const r = new Date(d); r.setDate(r.getDate() + n); return r; }
+let pendingInvestAmount = 0; // whole euros, display only: the server recomputes the total
+let pendingRemainderC = 0;
+const INVEST_BTN_DEFAULT = 'Mark As Invested (Monster Buy)';
 
 function mondayOf(d){
   const day = (d.getDay() + 6) % 7; // Monday = 0
@@ -433,15 +508,17 @@ function renderCycleProgress(start, end){
   const daysLeft = Math.max(0, Math.round((end - now) / 86400000) + 1);
   cycleFill.style.width = `${(elapsed / PERIOD_DAYS) * 100}%`;
   cycleFill.classList.toggle('due', daysLeft <= 2);
-  cycleDays.textContent = daysLeft <= 1 ? 'last day' : `${daysLeft} days left`;
+  cycleDays.textContent = daysLeft <= 1 ? 'Last Day' : `${daysLeft} Days Left`;
 }
+
+// ---------- share price ----------
 
 // MNST price in EUR from the mnst-price edge function (see README).
 // Short cache: it has to match a live broker screen.
 const SHARE_PRICE_CACHE_KEY = 'sdr_share_price_cache';
 const SHARE_PRICE_CACHE_MS = 2 * 60 * 1000;
 // anything but the primary venue drifts from the broker screen, so name it
-const PRICE_FALLBACK_LABEL = { tradegate: 'fallback: Tradegate', stuttgart: 'fallback: Stuttgart', nasdaq_fx: 'fallback: NASDAQ x FX' };
+const PRICE_FALLBACK_LABEL = { tradegate: 'Fallback: Tradegate', stuttgart: 'Fallback: Stuttgart', nasdaq_fx: 'Fallback: NASDAQ x FX' };
 
 async function fetchSharePriceEUR(){
   const supabaseUrl = localStorage.getItem('sdr_url');
@@ -453,42 +530,51 @@ async function fetchSharePriceEUR(){
   try {
     res = await fetch(`${supabaseUrl}/functions/v1/mnst-price`);
   } catch(networkErr){
-    return { error: `network error: ${networkErr.message}` };
+    return { error: `Network Error: ${networkErr.message}` };
   }
   const json = await res.json().catch(() => ({}));
   if(!res.ok || json.error) return { error: json.error || `HTTP ${res.status}` };
-  if(json.eur == null) return { error: 'no price in response' };
+  if(json.eur == null) return { error: 'No Price In Response' };
 
   localStorage.setItem(SHARE_PRICE_CACHE_KEY, JSON.stringify({ eur: json.eur, source: json.source, ts: Date.now() }));
   return { eur: json.eur, source: json.source };
 }
 
-function renderSharePrice(investedSum, sharesHeld){
-  avgCostStat.textContent = sharesHeld > 0 ? fmt(investedSum / sharesHeld) : '—';
+// Delta and avg cost use only the buys that have shares: a buy without them
+// has no cost basis to compare against the price today.
+function renderSharePrice(costOfSharedBuys, sharesHeld, buysWithoutShares){
+  avgCostStat.textContent = sharesHeld > 0 ? fmt(costOfSharedBuys / sharesHeld) : '–';
+  statsWarn.textContent = buysWithoutShares > 0
+    ? `${buysWithoutShares} ${buysWithoutShares === 1 ? 'Buy' : 'Buys'} Without Shares, Stats Exclude ${buysWithoutShares === 1 ? 'It' : 'Them'}`
+    : '';
 
   fetchSharePriceEUR().then(result => {
     const ok = result.eur != null;
     const value = ok && sharesHeld > 0 ? sharesHeld * result.eur : null;
-    sharePriceStat.textContent = ok ? fmt(result.eur) : '—';
+    sharePriceStat.textContent = ok ? fmt(result.eur) : '–';
     sharePriceDebug.textContent = ok ? (PRICE_FALLBACK_LABEL[result.source] || '') : (result.error || '');
-    portfolioValueStat.textContent = value != null ? fmt(value) : '—';
-    portfolioGain.textContent = '—';
+    portfolioValueStat.textContent = value != null ? fmt(value) : '–';
+    portfolioGain.textContent = '–';
     portfolioGain.className = 'portfolio-value';
     portfolioGainPct.textContent = '';
-    if(value == null || investedSum <= 0) return;
+    if(value == null || costOfSharedBuys <= 0) return;
 
-    const gain = value - investedSum;
+    const gain = value - costOfSharedBuys;
     const sign = gain >= 0 ? '+' : '−';
     const cls = gain >= 0 ? 'pos' : 'neg';
     portfolioGain.textContent = `${sign}${fmt(Math.abs(gain))}`;
     portfolioGain.className = 'portfolio-value ' + cls;
-    portfolioGainPct.textContent = `${sign}${Math.abs(gain / investedSum * 100).toFixed(2)}%`;
+    portfolioGainPct.textContent = `${sign}${Math.abs(gain / costOfSharedBuys * 100).toFixed(2)}%`;
     portfolioGainPct.className = 'portfolio-gain ' + cls;
   });
 }
 
-document.getElementById('qtyMinus').onclick = () => { qty = Math.max(1, qty-1); qtyVal.textContent = qty; };
-document.getElementById('qtyPlus').onclick = () => { qty = Math.min(50, qty+1); qtyVal.textContent = qty; };
+// ---------- add bottles / expenses ----------
+
+const readQty = el => { const n = Number(el.value); return Number.isInteger(n) && n >= 1 ? n : null; };
+const stepQty = d => { qtyInput.value = Math.max(1, (readQty(qtyInput) || 1) + d); };
+document.getElementById('qtyMinus').onclick = () => stepQty(-1);
+document.getElementById('qtyPlus').onclick = () => stepQty(1);
 
 document.querySelectorAll('.source-btn').forEach(btn => {
   btn.onclick = () => {
@@ -498,47 +584,101 @@ document.querySelectorAll('.source-btn').forEach(btn => {
   };
 });
 
+addBtn.onclick = async () => {
+  const q = readQty(qtyInput);
+  if(!q){ setStatus('Quantity Must Be A Whole Number Of 1 Or More', true); return; }
+  addBtn.disabled = true;
+  const row = { qty: q, source, value: q * RATE_CENTS / 100, unit_value: RATE_CENTS / 100 };
+  const { error } = await supabase.from('bottle_log').insert(row);
+  addBtn.disabled = false;
+  if(error){ setStatus('Save Failed: ' + error.message, true); return; }
+  qtyInput.value = 1;
+  justAdded = true;
+  await loadAndRender();
+};
+
+const expenseForm = document.getElementById('expenseForm');
+const expenseToggle = document.getElementById('expenseToggle');
+const expenseNote = document.getElementById('expenseNote');
+const expenseQty = document.getElementById('expenseQty');
+const expenseValue = document.getElementById('expenseValue');
+
+function closeExpenseForm(){
+  expenseForm.style.display = 'none';
+  expenseToggle.style.display = 'block';
+  expenseNote.value = ''; expenseQty.value = 1; expenseValue.value = '';
+}
+expenseToggle.onclick = () => { expenseForm.style.display = 'block'; expenseToggle.style.display = 'none'; expenseNote.focus(); };
+document.getElementById('expenseCancel').onclick = closeExpenseForm;
+
+document.getElementById('expenseConfirm').onclick = async () => {
+  const note = expenseNote.value.trim();
+  const q = readQty(expenseQty);
+  const cents = toC(expenseValue.value);
+  if(!note || !q || !(cents > 0)){ setStatus('Expense Needs A Description, A Quantity And A Total', true); return; }
+  const btn = document.getElementById('expenseConfirm');
+  btn.disabled = true;
+  const { error } = await supabase.from('bottle_log').insert({ source: 'expense', note, qty: q, value: -cents / 100, unit_value: +(-cents / 100 / q).toFixed(4) });
+  btn.disabled = false;
+  if(error){ setStatus('Save Failed: ' + error.message, true); return; }
+  closeExpenseForm();
+  justAdded = true;
+  await loadAndRender();
+};
+
+// ---------- load ----------
+
 async function loadAndRender(){
-  setStatus('syncing…');
-  const { data: pending, error: e1 } = await supabase.from('bottle_log').select('*').is('invested_at', null).order('logged_date', {ascending:false});
-  const { data: investmentRows, error: e3 } = await supabase.from('investments').select('invested_at, amount, share_price, shares');
+  setStatus('Syncing…');
+  const [{ data: pending, error: e1 }, { data: buys, error: e2 }] = await Promise.all([
+    supabase.from('bottle_log').select('*').is('invested_at', null),
+    supabase.from('investments').select('id, invested_at, amount, share_price, shares'),
+  ]);
 
-  if(e1 || e3){ setStatus('connection error, reload to try again', true); return; }
+  if(e1 || e2){ setStatus('Connection Error, Reload To Try Again', true); return; }
 
-  // pending includes expenses (negative value), so they subtract; rounded to cents so floor() never misses by float dust
-  const total = +pending.reduce((s,e) => s + Number(e.value), 0).toFixed(2);
-  const investedSum = investmentRows.reduce((s,r) => s + Number(r.amount), 0);
-  const sharesHeld = investmentRows.reduce((s,r) => s + (r.shares != null ? Number(r.shares) : 0), 0);
+  // pending includes expenses (negative value), so they subtract
+  const totalC = pending.reduce((s, e) => s + toC(e.value), 0);
+  const investedSum = buys.reduce((s, r) => s + Number(r.amount), 0);
+  const sharedBuys = buys.filter(r => r.shares != null && Number(r.shares) > 0);
+  const sharesHeld = sharedBuys.reduce((s, r) => s + Number(r.shares), 0);
+  const costOfSharedBuys = sharedBuys.reduce((s, r) => s + Number(r.amount), 0);
 
-  pendingInvestAmount = Math.floor(total);
-  pendingRemainder = +(total - pendingInvestAmount).toFixed(2);
-  totalAmount.textContent = fmt(total);
+  // a negative total never buys: it simply rolls into the next cycle
+  pendingInvestAmount = Math.max(0, Math.floor(totalC / 100));
+  pendingRemainderC = totalC - pendingInvestAmount * 100;
+  totalAmount.textContent = fmtC(totalC);
+  totalAmount.classList.toggle('neg', totalC < 0);
   investedTotal.textContent = fmt(investedSum);
   sharesHeldStat.textContent = sharesHeld > 0 ? fmtShares(sharesHeld) : '0';
-  renderSharePrice(investedSum, sharesHeld);
+  renderSharePrice(costOfSharedBuys, sharesHeld, buys.length - sharedBuys.length);
 
   if(pendingInvestAmount < 1){
     investBtn.disabled = true;
-    const needed = (1 - total).toFixed(2);
-    investBtn.textContent = `Need €${needed} more to invest`;
+    investBtn.textContent = `Need ${fmtC(100 - totalC)} More To Invest`;
   } else {
     investBtn.disabled = false;
     investBtn.textContent = INVEST_BTN_DEFAULT;
   }
 
-  const { start, end } = getPeriodBounds(investmentRows);
+  const { start, end } = getPeriodBounds(buys);
   renderPeriodRange(start, end);
   renderCycleProgress(start, end);
 
-  renderBottleLog(pending.slice(0,50).sort((a,b) => new Date(b.created_at) - new Date(a.created_at)));
-  renderInvestLog(investmentRows.sort((a,b) => new Date(b.invested_at) - new Date(a.invested_at)));
+  // newest first by created_at, then cut: slicing before sorting would drop the wrong rows
+  const newest = [...pending].sort((a, b) => new Date(b.created_at) - new Date(a.created_at)).slice(0, 50);
+  renderBottleLog(newest);
+  renderInvestLog([...buys].sort((a, b) => new Date(b.invested_at) - new Date(a.invested_at)));
 
   justAdded = false;
-  setStatus('synced');
+  setStatus('Synced ' + fmtTime(new Date()));
 }
 
+// ---------- log rendering ----------
+
 const dayKey = d => `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
-const entryLabels = {profit:'profit', deposit:'deposit', carry:'carried over', seed:'opening balance'};
+const entryLabels = { profit:'Profit', deposit:'Deposit', carry:'Carried Over', seed_profit:'Seed Profit', seed_deposit:'Seed Deposit' };
+const noQty = new Set(['seed_profit', 'seed_deposit']);
 
 function dayLabelFor(date){
   const today = new Date(); today.setHours(0,0,0,0);
@@ -563,7 +703,7 @@ function groupByDay(rows){
 
 const dayBlock = g => `<div class="log-day"><div class="log-day-label">${dayLabelFor(g.date)}</div>${g.rows.map(r => r.html).join('')}</div>`;
 
-// renders only the most recent day that has entries, with everything older behind "Show older"
+// renders only the most recent day that has entries, with everything older behind "Show Older"
 function renderDayGrouped(container, rows, showOlderIdPrefix, emptyMsg){
   if(rows.length === 0){
     container.innerHTML = `<div class="empty">${emptyMsg}</div>`;
@@ -575,7 +715,7 @@ function renderDayGrouped(container, rows, showOlderIdPrefix, emptyMsg){
   const olderBoxId = `${showOlderIdPrefix}Older`;
 
   const olderHtml = olderCount > 0
-    ? `<div class="log-older hidden" id="${olderBoxId}">${older.map(dayBlock).join('')}</div><button class="show-more-btn" type="button" id="${olderBtnId}">Show older (${olderCount})</button>`
+    ? `<div class="log-older hidden" id="${olderBoxId}">${older.map(dayBlock).join('')}</div><button class="show-more-btn" type="button" id="${olderBtnId}">Show Older (${olderCount})</button>`
     : '';
 
   container.innerHTML = dayBlock(newest) + olderHtml;
@@ -584,97 +724,155 @@ function renderDayGrouped(container, rows, showOlderIdPrefix, emptyMsg){
   const olderBox = document.getElementById(olderBoxId);
   olderBtn?.addEventListener('click', () => {
     const shown = !olderBox.classList.toggle('hidden');
-    olderBtn.textContent = shown ? 'Show less' : `Show older (${olderCount})`;
+    olderBtn.textContent = shown ? 'Show Less' : `Show Older (${olderCount})`;
+  });
+}
+
+const rowLabel = it => it.source === 'expense' ? esc(it.note || 'Expense') : (entryLabels[it.source] || esc(it.source));
+const rowQtyText = it => noQty.has(it.source) ? '' : `${it.qty}× `;
+function rowValText(it){ const c = toC(it.value); return c < 0 ? fmtC(c) : '+' + fmtC(c); }
+
+function bottleRowHtml(it, enterClass = ''){
+  const d = new Date(it.created_at);
+  const neg = toC(it.value) < 0 ? ' neg' : '';
+  return `<div class="entry${enterClass}"><span>${fmtTime(d)} · ${rowQtyText(it)}<span class="meta">${rowLabel(it)}</span></span><span class="right"><span class="val${neg}">${rowValText(it)}</span><button class="edit-btn" type="button" data-id="${it.id}" title="Edit" aria-label="Edit">✎</button><button class="del-btn" type="button" data-id="${it.id}" title="Delete" aria-label="Delete">✕</button></span></div>`;
+}
+
+// Edit a bottle_log row. Never touches invested_at. logged_date follows created_at
+// through a database trigger. value is rebuilt in cents.
+function editRow(row){
+  const isBottle = row.source === 'profit' || row.source === 'deposit';
+  const isExpense = row.source === 'expense';
+  const whenOrig = toLocalInput(new Date(row.created_at));
+  let html = field('When', `<input class="invest-input" type="datetime-local" step="1" name="when" required value="${whenOrig}">`);
+  if(isBottle){
+    html += field('Source', `<select class="invest-input" name="src"><option value="profit"${row.source === 'profit' ? ' selected' : ''}>Profit</option><option value="deposit"${row.source === 'deposit' ? ' selected' : ''}>Deposit</option></select>`);
+    html += field('Quantity', `<input class="invest-input" type="number" name="qty" min="1" step="1" required value="${row.qty}" inputmode="numeric">`);
+  } else if(isExpense){
+    html += field('Description', `<input class="invest-input" type="text" name="note" maxlength="60" required value="${esc(row.note || '')}">`);
+    html += field('Quantity', `<input class="invest-input" type="number" name="qty" min="1" step="1" required value="${row.qty}" inputmode="numeric">`);
+    html += field('Total (€)', `<input class="invest-input" type="number" name="amount" min="0.01" step="0.01" required value="${(-toC(row.value) / 100).toFixed(2)}" inputmode="decimal">`);
+  } else {
+    html += field('Amount (€)', `<input class="invest-input" type="number" name="amount" min="0.01" step="0.01" required value="${(toC(row.value) / 100).toFixed(2)}" inputmode="decimal">`);
+  }
+  return showModal({
+    title: 'Edit Entry', html, onOk: async form => {
+      const f = form.elements;
+      const patch = {};
+      if(!sameTime(f.when.value, whenOrig)) patch.created_at = new Date(f.when.value).toISOString();
+      if(isBottle){
+        const q = Number(f.qty.value);
+        if(!Number.isInteger(q) || q < 1) return 'Quantity Must Be A Whole Number Of 1 Or More';
+        Object.assign(patch, { qty: q, source: f.src.value, value: q * RATE_CENTS / 100, unit_value: RATE_CENTS / 100 });
+      } else if(isExpense){
+        const q = Number(f.qty.value);
+        const cents = toC(f.amount.value);
+        if(!Number.isInteger(q) || q < 1) return 'Quantity Must Be A Whole Number Of 1 Or More';
+        if(!(cents > 0)) return 'Total Must Be Above Zero';
+        Object.assign(patch, { qty: q, note: f.note.value.trim(), value: -cents / 100, unit_value: +(-cents / 100 / q).toFixed(4) });
+      } else {
+        const cents = toC(f.amount.value);
+        if(!(cents > 0)) return 'Amount Must Be Above Zero';
+        Object.assign(patch, { value: cents / 100, unit_value: cents / 100 });
+      }
+      const { error } = await supabase.from('bottle_log').update(patch).eq('id', row.id);
+      return error ? error.message : null;
+    }
+  });
+}
+
+function deleteRow(row){
+  const warn = row.source === 'carry' ? '<p class="modal-warn">These Cents Will Be Lost</p>'
+    : row.invested_at ? '<p class="modal-warn">Already Part Of A Buy, The Buy Will Not Change</p>' : '';
+  const desc = `${fmtTime(new Date(row.created_at))} · ${rowQtyText(row)}${rowLabel(row)} · ${rowValText(row)}`;
+  return askConfirm('Delete Entry?', `<b>${desc}</b>${warn}`, 'Delete', true, async () => {
+    const { error } = await supabase.from('bottle_log').delete().eq('id', row.id);
+    return error ? error.message : null;
+  });
+}
+
+function bindRowActions(container, rows, reload){
+  const byId = new Map(rows.map(r => [r.id, r]));
+  container.querySelectorAll('.edit-btn').forEach(btn => {
+    btn.onclick = async () => { if(await editRow(byId.get(btn.dataset.id))) await reload(); };
+  });
+  container.querySelectorAll('.del-btn').forEach(btn => {
+    btn.onclick = async () => { if(await deleteRow(byId.get(btn.dataset.id))) await reload(); };
   });
 }
 
 function renderBottleLog(entries){
   const rows = entries.map((it, idx) => {
-    const enterClass = (justAdded && idx === 0) ? ' enter' : '';
     const d = new Date(it.created_at);
-    const qtyText = it.source === 'seed' ? '' : `${it.qty}× `;
-    const label = it.source === 'expense' ? esc(it.note || 'expense') : (entryLabels[it.source] || it.source);
-    const v = Number(it.value);
-    const valText = v < 0 ? `−${fmt(-v)}` : `+${fmt(v)}`;
-    const html = `<div class="entry${enterClass}"><span>${fmtTime(d)} · ${qtyText}<span class="meta">${label}</span></span><span class="right"><span class="val">${valText}</span><button class="del-btn" type="button" data-id="${it.id}" title="delete">✕</button></span></div>`;
+    return { day: dayKey(d), date: d, html: bottleRowHtml(it, (justAdded && idx === 0) ? ' enter' : '') };
+  });
+  renderDayGrouped(logEl, rows, 'log', 'Nothing On The Tape Yet.');
+  bindRowActions(logEl, entries, loadAndRender);
+}
+
+// ---------- buys ----------
+
+// Edit date, price and shares of a buy. Amount is fixed. A date change also moves the
+// rows of that buy and its carry (edit_investment). `fill` retitles it for a buy with gaps.
+function editBuy(buy, fill){
+  const whenOrig = toLocalInput(new Date(buy.invested_at));
+  const html = field('When', `<input class="invest-input" type="datetime-local" step="1" name="when" required value="${whenOrig}">`)
+    + field('Price Per Share (€)', `<input class="invest-input" type="number" name="price" min="0" step="any" inputmode="decimal" value="${buy.share_price ?? ''}">`)
+    + field('Shares', `<input class="invest-input" type="number" name="shares" min="0" step="any" inputmode="decimal" value="${buy.shares ?? ''}">`);
+  return showModal({
+    title: fill ? 'Fill Details' : 'Edit Buy', html, onOk: async form => {
+      const f = form.elements;
+      const price = f.price.value !== '' ? Number(f.price.value) : null;
+      const shares = f.shares.value !== '' ? Number(f.shares.value) : null;
+      if((price != null && !(price > 0)) || (shares != null && !(shares > 0))) return 'Price And Shares Must Be Above Zero';
+      // an untouched date keeps the exact stored timestamp (the input has no milliseconds)
+      const when = sameTime(f.when.value, whenOrig) ? buy.invested_at : new Date(f.when.value).toISOString();
+      const { error } = await supabase.rpc('edit_investment', { p_id: buy.id, p_invested_at: when, p_share_price: price, p_shares: shares });
+      return error ? error.message : null;
+    }
+  });
+}
+
+function undoBuy(buy){
+  const when = new Date(buy.invested_at).toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'short' });
+  return askConfirm('Undo Buy?', `<b>${fmt(Number(buy.amount))} · ${when}</b><br>Its rows go back to pending and the carry it created is deleted.`, 'Undo Buy', true, async () => {
+    const { error } = await supabase.rpc('undo_last_investment');
+    return error ? error.message : null;
+  });
+}
+
+function renderInvestLog(buys){
+  const latestId = buys[0]?.id;
+  const rows = buys.map(it => {
+    const d = new Date(it.invested_at);
+    const incomplete = it.shares == null || it.share_price == null;
+    const parts = [];
+    if(it.shares != null) parts.push(`${fmtShares(it.shares)} Shares`);
+    if(it.share_price != null) parts.push(`@ ${fmt(Number(it.share_price))}`);
+    const detail = parts.length ? parts.join(' ') : 'No Shares Or Price';
+    const actions = `<span class="row-actions"><button class="link-btn${incomplete ? ' warn' : ''}" type="button" data-act="edit" data-id="${it.id}">${incomplete ? 'Fill Details' : 'Edit'}</button>${it.id === latestId ? `<button class="link-btn danger" type="button" data-act="undo" data-id="${it.id}">Undo Buy</button>` : ''}</span>`;
+    const html = `<div class="entry-block"><div class="entry invest"><span>${fmtTime(d)} · Invested</span><span class="val">−${fmt(Number(it.amount))}</span></div><div class="entry-sub"><span>${detail}</span>${actions}</div></div>`;
     return { day: dayKey(d), date: d, html };
   });
 
-  renderDayGrouped(logEl, rows, 'log', 'Nothing on the tape yet.');
+  renderDayGrouped(investLogEl, rows, 'invest', 'No Buys Yet.');
 
-  logEl.querySelectorAll('.del-btn').forEach(btn => {
+  const byId = new Map(buys.map(b => [b.id, b]));
+  investLogEl.querySelectorAll('[data-act]').forEach(btn => {
     btn.onclick = async () => {
-      if(!confirm('Delete this entry?')) return;
-      btn.disabled = true;
-      const { error } = await supabase.from('bottle_log').delete().eq('id', btn.dataset.id);
-      if(error){ setStatus('delete failed: ' + error.message, true); return; }
-      await loadAndRender();
+      const buy = byId.get(btn.dataset.id);
+      const changed = btn.dataset.act === 'undo' ? await undoBuy(buy) : await editBuy(buy, btn.textContent === 'Fill Details');
+      if(changed) await loadAndRender();
     };
   });
 }
 
-function renderInvestLog(investments){
-  const rows = investments.map(it => {
-    const d = new Date(it.invested_at);
-    let sub = '';
-    if(it.shares != null || it.share_price != null){
-      const parts = [];
-      if(it.shares != null) parts.push(`${fmtShares(it.shares)} shares`);
-      if(it.share_price != null) parts.push(`@ ${fmt(Number(it.share_price))}`);
-      sub = `<div class="entry-sub">${parts.join(' ')}</div>`;
-    }
-    const html = `<div class="entry-block"><div class="entry invest"><span>${fmtTime(d)} · invested</span><span class="val">−${fmt(Number(it.amount))}</span></div>${sub}</div>`;
-    return { day: dayKey(d), date: d, html };
-  });
-
-  renderDayGrouped(investLogEl, rows, 'invest', 'No buys yet.');
-}
-
-addBtn.onclick = async () => {
-  addBtn.disabled = true;
-  const value = qty * RATE;
-  const row = { qty, source, value, unit_value: RATE };
-  const { error } = await supabase.from('bottle_log').insert(row);
-  addBtn.disabled = false;
-  if(error){ setStatus('save failed: ' + error.message, true); return; }
-  qty = 1; qtyVal.textContent = 1;
-  justAdded = true;
-  await loadAndRender();
-};
-
-const expenseForm = document.getElementById('expenseForm');
-const expenseToggle = document.getElementById('expenseToggle');
-const expenseNote = document.getElementById('expenseNote');
-const expenseQty = document.getElementById('expenseQty');
-const expenseValue = document.getElementById('expenseValue');
-
-function closeExpenseForm(){
-  expenseForm.style.display = 'none';
-  expenseToggle.style.display = 'block';
-  expenseNote.value = ''; expenseQty.value = 1; expenseValue.value = '';
-}
-expenseToggle.onclick = () => { expenseForm.style.display = 'block'; expenseToggle.style.display = 'none'; expenseNote.focus(); };
-document.getElementById('expenseCancel').onclick = closeExpenseForm;
-
-document.getElementById('expenseConfirm').onclick = async () => {
-  const note = expenseNote.value.trim();
-  const q = parseInt(expenseQty.value, 10);
-  const total = Math.round(Number(expenseValue.value) * 100) / 100;
-  if(!note || !(q > 0) || !(total > 0)){ setStatus('expense needs a description, quantity and total', true); return; }
-  const btn = document.getElementById('expenseConfirm');
-  btn.disabled = true;
-  const { error } = await supabase.from('bottle_log').insert({ source: 'expense', note, qty: q, value: -total, unit_value: -total / q });
-  btn.disabled = false;
-  if(error){ setStatus('save failed: ' + error.message, true); return; }
-  closeExpenseForm();
-  justAdded = true;
-  await loadAndRender();
-};
+// ---------- mark as invested ----------
 
 investBtn.onclick = () => {
   investAmount.textContent = fmt(pendingInvestAmount);
-  if(pendingRemainder > 0){
-    carryNote.textContent = `€${pendingRemainder.toFixed(2)} carries to next cycle`;
+  if(pendingRemainderC > 0){
+    carryNote.textContent = `${fmtC(pendingRemainderC)} Carries To Next Cycle`;
     carryNote.style.display = 'block';
   } else {
     carryNote.style.display = 'none';
@@ -692,31 +890,24 @@ function closeInvestForm(){
 
 investCancel.onclick = closeInvestForm;
 
+// One RPC, one transaction: the server recomputes the total, stamps the rows, writes the
+// buy and the carry. Any failure rolls everything back, so there are no partial states.
 investConfirm.onclick = async () => {
-  investConfirm.disabled = true;
-  const now = new Date().toISOString();
-  const amount = pendingInvestAmount;
-  const remainder = pendingRemainder;
   const price = sharePriceInput.value !== '' ? Number(sharePriceInput.value) : null;
   const shares = sharesInput.value !== '' ? Number(sharesInput.value) : null;
-
-  const { error: updErr } = await supabase.from('bottle_log').update({ invested_at: now }).is('invested_at', null);
-  if(updErr){ setStatus('mark as invested failed: ' + updErr.message, true); investConfirm.disabled = false; return; }
-
-  const { error: insErr } = await supabase.from('investments').insert({ invested_at: now, amount, share_price: price, shares });
-
-  let carryErr = null;
-  if(remainder > 0){
-    const res = await supabase.from('bottle_log').insert({ source: 'carry', qty: 1, unit_value: remainder, value: remainder });
-    carryErr = res.error;
+  if((price != null && !(price > 0)) || (shares != null && !(shares > 0))){
+    setStatus('Price And Shares Must Be Above Zero', true); return;
   }
-
+  investConfirm.disabled = true;
+  const { error } = await supabase.rpc('mark_invested', { p_share_price: price, p_shares: shares });
   investConfirm.disabled = false;
+  if(error){
+    await loadAndRender();
+    setStatus('Buy Failed, Nothing Was Changed: ' + error.message, true);
+    return;
+  }
   closeInvestForm();
   await loadAndRender();
-
-  if(insErr){ setStatus('bottles marked as invested, but the investment record failed to save: ' + insErr.message, true); }
-  else if(carryErr){ setStatus(`invested, but the €${remainder.toFixed(2)} carry-over failed to save. Fix it manually in the database: ` + carryErr.message, true); }
 };
 
 if('serviceWorker' in navigator){
