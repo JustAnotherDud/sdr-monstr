@@ -226,6 +226,16 @@
       </div>
       <button class="add-btn" type="button" id="addBtn">Add</button>
     </div>
+    <button class="show-more-btn" type="button" id="expenseToggle">Add expense</button>
+    <div class="invest-form" id="expenseForm" style="display:none;">
+      <input class="invest-input" type="text" id="expenseNote" placeholder="Description" maxlength="60">
+      <input class="invest-input" type="number" id="expenseQty" placeholder="Quantity" value="1" step="1" min="1" inputmode="numeric">
+      <input class="invest-input" type="number" id="expenseValue" placeholder="Total (€)" step="0.01" min="0.01" inputmode="decimal">
+      <div class="invest-actions">
+        <button class="invest-cancel" type="button" id="expenseCancel">Cancel</button>
+        <button class="invest-confirm" type="button" id="expenseConfirm">Add</button>
+      </div>
+    </div>
   </div>
 
   <button class="invest-btn" type="button" id="investBtn" disabled>Mark as invested (Monster buy)</button>
@@ -386,6 +396,7 @@ const INVEST_BTN_DEFAULT = 'Mark as invested (Monster buy)';
 
 function fmt(n){ return '€' + n.toFixed(2); }
 function fmtShares(n){ return (Math.round(Number(n) * 1000000) / 1000000).toString(); }
+function esc(s){ return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function fmtTime(d){ return d.toLocaleTimeString('en-GB', {hour:'2-digit', minute:'2-digit'}); }
 function setStatus(msg, isErr){ statusLine.textContent = msg; statusLine.className = 'status' + (isErr ? ' err' : ''); }
 
@@ -494,7 +505,8 @@ async function loadAndRender(){
 
   if(e1 || e3){ setStatus('connection error, reload to try again', true); return; }
 
-  const total = pending.reduce((s,e) => s + Number(e.value), 0);
+  // pending includes expenses (negative value), so they subtract; rounded to cents so floor() never misses by float dust
+  const total = +pending.reduce((s,e) => s + Number(e.value), 0).toFixed(2);
   const investedSum = investmentRows.reduce((s,r) => s + Number(r.amount), 0);
   const sharesHeld = investmentRows.reduce((s,r) => s + (r.shares != null ? Number(r.shares) : 0), 0);
 
@@ -581,7 +593,10 @@ function renderBottleLog(entries){
     const enterClass = (justAdded && idx === 0) ? ' enter' : '';
     const d = new Date(it.created_at);
     const qtyText = it.source === 'seed' ? '' : `${it.qty}× `;
-    const html = `<div class="entry${enterClass}"><span>${fmtTime(d)} · ${qtyText}<span class="meta">${entryLabels[it.source] || it.source}</span></span><span class="right"><span class="val">+${fmt(Number(it.value))}</span><button class="del-btn" type="button" data-id="${it.id}" title="delete">✕</button></span></div>`;
+    const label = it.source === 'expense' ? esc(it.note || 'expense') : (entryLabels[it.source] || it.source);
+    const v = Number(it.value);
+    const valText = v < 0 ? `−${fmt(-v)}` : `+${fmt(v)}`;
+    const html = `<div class="entry${enterClass}"><span>${fmtTime(d)} · ${qtyText}<span class="meta">${label}</span></span><span class="right"><span class="val">${valText}</span><button class="del-btn" type="button" data-id="${it.id}" title="delete">✕</button></span></div>`;
     return { day: dayKey(d), date: d, html };
   });
 
@@ -623,6 +638,35 @@ addBtn.onclick = async () => {
   addBtn.disabled = false;
   if(error){ setStatus('save failed: ' + error.message, true); return; }
   qty = 1; qtyVal.textContent = 1;
+  justAdded = true;
+  await loadAndRender();
+};
+
+const expenseForm = document.getElementById('expenseForm');
+const expenseToggle = document.getElementById('expenseToggle');
+const expenseNote = document.getElementById('expenseNote');
+const expenseQty = document.getElementById('expenseQty');
+const expenseValue = document.getElementById('expenseValue');
+
+function closeExpenseForm(){
+  expenseForm.style.display = 'none';
+  expenseToggle.style.display = 'block';
+  expenseNote.value = ''; expenseQty.value = 1; expenseValue.value = '';
+}
+expenseToggle.onclick = () => { expenseForm.style.display = 'block'; expenseToggle.style.display = 'none'; expenseNote.focus(); };
+document.getElementById('expenseCancel').onclick = closeExpenseForm;
+
+document.getElementById('expenseConfirm').onclick = async () => {
+  const note = expenseNote.value.trim();
+  const q = parseInt(expenseQty.value, 10);
+  const total = Math.round(Number(expenseValue.value) * 100) / 100;
+  if(!note || !(q > 0) || !(total > 0)){ setStatus('expense needs a description, quantity and total', true); return; }
+  const btn = document.getElementById('expenseConfirm');
+  btn.disabled = true;
+  const { error } = await supabase.from('bottle_log').insert({ source: 'expense', note, qty: q, value: -total, unit_value: -total / q });
+  btn.disabled = false;
+  if(error){ setStatus('save failed: ' + error.message, true); return; }
+  closeExpenseForm();
   justAdded = true;
   await loadAndRender();
 };

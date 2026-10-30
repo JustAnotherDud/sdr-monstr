@@ -27,11 +27,21 @@ Picked with the buttons in "Add bottles":
 `carry` (see above) and `seed` (opening balance) are written by the app or by
 hand, not picked.
 
+`expense` is a cost, added with "Add expense" under "Add bottles": a
+description (`note`), a quantity and a total. The row has a negative `value`
+and shows as "3× Rolos Impressora" and "−€5.80". It subtracts from the
+pending total but is not a bottle: it stays out of any count and out of
+`qty * 0.10`. If the total drops below €1 there is no buy, and the expense
+stays pending. On a buy it is netted into the total with the other pending
+rows, so `floor(total)` and the carry stay correct.
+
 ## Data model (Supabase)
 
-- **`bottle_log`**: `qty`, `source`, `value`, `unit_value`, `logged_date`,
-  `created_at`, `invested_at`. `invested_at` is null until a buy; a buy
-  stamps all pending rows with the same time.
+- **`bottle_log`**: `qty`, `source`, `value`, `unit_value`, `note` (text,
+  nullable, the description of an `expense`), `logged_date`, `created_at`,
+  `invested_at`. `source` is one of `profit`, `deposit`, `no_profit`, `seed`,
+  `carry`, `expense`. `invested_at` is null until a buy; a buy stamps all
+  pending rows with the same time.
 - **`investments`**: `invested_at`, `amount` (whole euros), `share_price` and
   `shares` (both optional), `note` (unused), `created_at`.
 
