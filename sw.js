@@ -1,4 +1,4 @@
-const CACHE = 'sdr-monstr-v13';
+const CACHE = 'sdr-monstr-v14';
 // Third-party files that never change for a given URL live in their own cache, so a
 // CACHE bump does not throw away the offline copy of supabase-js.
 const RUNTIME = 'sdr-monstr-runtime-v1';

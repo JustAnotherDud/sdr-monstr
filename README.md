@@ -82,11 +82,34 @@ Delete asks first, in a modal. Deleting a carry says the cents are lost.
 
 All sums in the app run in integer cents.
 
-## Stats on Home
+## Tabs
 
-Delta and average cost use only the buys that have shares: a buy with no
-shares has no cost basis. If any exist, a line says "1 Buy Without Shares,
-Stats Exclude It". "Invested" still counts every buy.
+Hash routing (`#/home`, `#/history`, `#/stats`, `#/portfolio`), a fixed tab
+bar at the bottom, no build, charts are inline SVG. All data loads once
+(paged by 1000, the PostgREST cap) and every tab draws from it.
+
+- **Home**: the pot, the cycle, add bottles, the buy, the latest log. When the
+  pot is under €1 and the last 14 days have a positive pace (profit, deposit
+  and expense rows), it says "At The Current Pace You Reach €1 In X Days".
+- **History**: every `bottle_log` row, pending first, then grouped by buy
+  (date and amount in the header). Filter by source, 50 rows per page, edit
+  and delete on every row, "Export CSV" for the rows the filter matches
+  (all pages). A note that starts with `=`, `+`, `-` or `@` gets a leading
+  apostrophe in the file, so a spreadsheet does not run it.
+- **Stats**: all-time totals by source; real profit (`profit` +
+  `seed_profit` - expenses, with deposit, seed deposit and carry listed
+  apart); bottles per week for 12 weeks; best day and average per day (days
+  since the first bottle); the pot over time (a rise per row, a drop per buy).
+  Bottle counts only use `profit` and `deposit`.
+- **Portfolio**: a table of lots with gain against today's price, average
+  cost against price today, invested against value, and a 12 month
+  projection. The projection repeats the pace of the last 8 weeks of buys at
+  a constant price: an extrapolation, labelled as one. MNST pays no
+  dividends, so value moves with the price alone.
+
+Delta and average cost (Home and Portfolio) use only the buys that have
+shares: a buy with no shares has no cost basis. If any exist, a line says "1
+Buy Without Shares, Stats Exclude It". "Invested" still counts every buy.
 
 ## Running it
 
@@ -152,6 +175,9 @@ framework, no bundler. UI text is Title Case.
 - **No auto-refresh.** The price loads with `loadAndRender()` (on load and
   after add, edit, delete or buy) behind a two-minute cache. An open tab
   never updates it.
+- **Tabs do not refetch.** Switching tab redraws from the data of the last
+  load, so a change made on another device shows only after the next action
+  here or a reload.
 - **Buy dates are not tied to row dates.** A row's `created_at` can be edited
   to after the buy that holds it. Nothing checks it; membership of a buy is
   `invested_at`, not the date.
